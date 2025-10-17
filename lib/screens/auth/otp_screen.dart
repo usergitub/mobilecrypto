@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
 import '/utils/app_theme.dart';
+import '/main.dart'; // 👈 Pour utiliser showOtpNotification()
 import '/widgets/numeric_keypad.dart';
 import 'name_screen.dart';
 
@@ -12,6 +14,22 @@ class OtpScreen extends StatefulWidget {
 
 class _OtpScreenState extends State<OtpScreen> {
   String _otp = '';
+  String _generatedOtp = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _sendOtp();
+  }
+
+  // 🔐 Génération et affichage du code OTP via notification
+  void _sendOtp() async {
+    final code = (1000 + Random().nextInt(9000)).toString();
+    await showOtpNotification(code); // 👈 Affiche la notification
+    setState(() {
+      _generatedOtp = code;
+    });
+  }
 
   void _onKeyPressed(String value) {
     if (_otp.length < 4) {
@@ -19,8 +37,12 @@ class _OtpScreenState extends State<OtpScreen> {
         _otp += value;
       });
       if (_otp.length == 4) {
-        // Automatically navigate when OTP is complete
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NameScreen()));
+        if (_otp == _generatedOtp) {
+          Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => const NameScreen()));
+        } else {
+          _showError();
+        }
       }
     }
   }
@@ -31,6 +53,27 @@ class _OtpScreenState extends State<OtpScreen> {
         _otp = _otp.substring(0, _otp.length - 1);
       });
     }
+  }
+
+  void _showError() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Code incorrect"),
+        content: const Text("Le code saisi ne correspond pas."),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              setState(() {
+                _otp = '';
+              });
+            },
+            child: const Text("Réessayer"),
+          )
+        ],
+      ),
+    );
   }
 
   @override
@@ -47,12 +90,22 @@ class _OtpScreenState extends State<OtpScreen> {
         child: Column(
           children: [
             Container(
-              width: 60, height: 60,
-              decoration: BoxDecoration(color: AppColors.card.withOpacity(0.5), shape: BoxShape.circle),
-              child: const Center(child: Icon(Icons.chat_bubble_outline, color: AppColors.primaryGreen)),
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: AppColors.card.withOpacity(0.5),
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                  child: Icon(Icons.chat_bubble_outline,
+                      color: AppColors.primaryGreen)),
             ),
             const SizedBox(height: 32),
-            const Text("Vérifie ta notification pour récupérer ton code MobileCrypto.", style: AppTextStyles.heading1, textAlign: TextAlign.center),
+            const Text(
+              "Vérifie la notification pour ton code MobileCrypto.",
+              style: AppTextStyles.heading1,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 48),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -62,14 +115,16 @@ class _OtpScreenState extends State<OtpScreen> {
                   height: 4,
                   margin: const EdgeInsets.symmetric(horizontal: 10),
                   decoration: BoxDecoration(
-                    color: index < _otp.length ? AppColors.primaryGreen : AppColors.card,
+                    color: index < _otp.length
+                        ? AppColors.primaryGreen
+                        : AppColors.card,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 );
               }),
             ),
-            Expanded(child: Container()),
-             Container(
+            const Spacer(),
+            Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppColors.card,
@@ -82,8 +137,9 @@ class _OtpScreenState extends State<OtpScreen> {
             ),
             const SizedBox(height: 24),
             TextButton(
-              onPressed: () { /* Resend OTP Logic */ },
-              child: const Text("Tu n'as pas reçu la notification ?\nRenvoyer un nouveau code",
+              onPressed: _sendOtp,
+              child: const Text(
+                "Tu n'as pas reçu la notification ?\nRenvoyer un nouveau code",
                 style: AppTextStyles.body,
                 textAlign: TextAlign.center,
               ),
