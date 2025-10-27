@@ -1,5 +1,10 @@
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '/utils/app_theme.dart';
+import '../home/transactions_screen.dart';
+import '../home/settings_screen.dart';
+import '../home/profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -10,31 +15,64 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  List<double> percentages = [10.45, 10.45, 10.45, 10.45];
+  late Timer _timer;
+
+  final List<Widget> _screens = const [
+    Placeholder(), // remplacé par Home contenu
+    TransactionsScreen(),
+    SettingsScreen(),
+    ProfileScreen(),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 2), (_) {
+      setState(() {
+        // Change aléatoirement les % et la couleur
+        percentages = List.generate(4, (_) {
+          double value = Random().nextDouble() * 20 - 10; // -10% à +10%
+          return double.parse(value.toStringAsFixed(2));
+        });
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  void _showDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(title, style: AppTextStyles.heading2),
+        content: Text(message, style: AppTextStyles.body),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("OK", style: AppTextStyles.link),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    Widget currentScreen;
+    if (_selectedIndex == 0) {
+      currentScreen = _buildHomeContent();
+    } else {
+      currentScreen = _screens[_selectedIndex];
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16.0),
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 24),
-            _buildSearchBar(),
-            const SizedBox(height: 24),
-            _buildWelcomeBanner(),
-            const SizedBox(height: 32),
-            _buildSectionTitle("En pleine hausse 🚀", "Voir tous"),
-            const SizedBox(height: 16),
-            _buildTrendingCoins(),
-            const SizedBox(height: 32),
-            _buildSectionTitle("Achetez & Vendez 🔄", ""),
-            const SizedBox(height: 16),
-            _buildActionButtons(),
-          ],
-        ),
-      ),
+      body: SafeArea(child: currentScreen),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) => setState(() => _selectedIndex = index),
@@ -54,14 +92,33 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildHomeContent() {
+    return ListView(
+      padding: const EdgeInsets.all(16.0),
+      children: [
+        _buildHeader(),
+        const SizedBox(height: 24),
+        _buildSearchBar(),
+        const SizedBox(height: 24),
+        _buildWelcomeBanner(),
+        const SizedBox(height: 32),
+        _buildSectionTitle("En pleine hausse 🚀", "Voir tous", onTap: () {
+          _showDialog("En développement", "Cette page est en cours de développement.");
+        }),
+        const SizedBox(height: 16),
+        _buildTrendingCoins(),
+        const SizedBox(height: 32),
+        _buildSectionTitle("Achetez & Vendez 🔄", "", onTap: null),
+        const SizedBox(height: 16),
+        _buildActionButtons(),
+      ],
+    );
+  }
+
   Widget _buildHeader() {
     return Row(
       children: [
-        const CircleAvatar(
-          radius: 24,
-          // backgroundImage: NetworkImage('...'), // User profile image
-          backgroundColor: Colors.blueAccent,
-        ),
+        const CircleAvatar(radius: 24, backgroundColor: Colors.blueAccent),
         const SizedBox(width: 12),
         const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -72,7 +129,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const Spacer(),
         TextButton.icon(
-          onPressed: () {},
+          onPressed: () {
+            _showDialog("Notification", "L’app est en cours de développement. Testez et donnez votre avis.");
+          },
           icon: const Icon(Icons.chat_bubble, color: AppColors.text, size: 18),
           label: const Text("Notification", style: TextStyle(color: AppColors.text)),
           style: TextButton.styleFrom(
@@ -107,56 +166,47 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(20),
         color: AppColors.primaryGreen,
       ),
-      child: Stack(
+      clipBehavior: Clip.hardEdge,
+      child: Row(
         children: [
-          Positioned(
-            left: 0,
-            bottom: 0,
-            top: 0,
-            width: MediaQuery.of(context).size.width * 0.4,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20),
-                bottomLeft: Radius.circular(20),
-              ),
-              child: Image.network(
-                // Placeholder image, replace with your asset
-                'https://i.ibb.co/C0bNf3M/african-man-surprised.png',
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 100),
-              ),
+          Expanded(
+            flex: 2,
+            child: Image.network(
+              'https://i.ibb.co/C0bNf3M/african-man-surprised.png',
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 100, color: Colors.white),
             ),
           ),
-          Positioned(
-            right: 16,
-            top: 16,
-            bottom: 16,
-            left: MediaQuery.of(context).size.width * 0.4 + 16,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text("Bonus de bienvenue 🎁", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                const Text("0 % de frais", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                const Text("Sur la 1ère transaction, profite dès maintenant !", style: TextStyle(color: Colors.white70, fontSize: 12)),
-                const Spacer(),
-                ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          Expanded(
+            flex: 3,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("Bonus de bienvenue 🎁", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  const Text("0 % de frais", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                  const Text("Sur la 1ère transaction, profite dès maintenant !", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: () {},
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text("Commencer"),
+                        Icon(Icons.arrow_forward_ios, size: 14),
+                      ],
+                    ),
                   ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text("Commencer"),
-                      Icon(Icons.arrow_forward_ios, size: 14)
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -164,41 +214,43 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title, String actionText) {
+  Widget _buildSectionTitle(String title, String actionText, {VoidCallback? onTap}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(title, style: const TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.bold)),
         if (actionText.isNotEmpty)
-          Text(actionText, style: const TextStyle(color: AppColors.textFaded)),
+          GestureDetector(
+            onTap: onTap,
+            child: Text(actionText, style: const TextStyle(color: AppColors.textFaded)),
+          ),
       ],
     );
   }
 
   Widget _buildTrendingCoins() {
-    // Replace with real data from your API
-    final coins = [
-      {'icon': Icons.currency_bitcoin, 'color': Colors.orange},
-      {'icon': Icons.diamond_outlined, 'color': Colors.cyan},
-      {'icon': Icons.ac_unit, 'color': Colors.yellow},
-      {'icon': Icons.send, 'color': Colors.blue},
-    ];
+    final icons = [Icons.currency_bitcoin, Icons.diamond_outlined, Icons.ac_unit, Icons.send];
+    final colors = [Colors.orange, Colors.cyan, Colors.yellow, Colors.blue];
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: coins.map((coin) {
+      children: List.generate(4, (i) {
+        bool isPositive = percentages[i] >= 0;
         return Column(
           children: [
             CircleAvatar(
               radius: 28,
               backgroundColor: AppColors.card,
-              child: Icon(coin['icon'] as IconData, color: coin['color'] as Color, size: 28),
+              child: Icon(icons[i], color: colors[i], size: 28),
             ),
             const SizedBox(height: 8),
-            const Text("+10,45%", style: TextStyle(color: AppColors.primaryGreen)),
+            Text(
+              "${percentages[i] > 0 ? '+' : ''}${percentages[i]}%",
+              style: TextStyle(color: isPositive ? AppColors.primaryGreen : AppColors.primaryRed, fontWeight: FontWeight.bold),
+            ),
           ],
         );
-      }).toList(),
+      }),
     );
   }
 
@@ -206,33 +258,26 @@ class _HomeScreenState extends State<HomeScreen> {
     return Row(
       children: [
         Expanded(
-          child: _actionButton(
-            "Acheter",
-            Icons.arrow_upward,
-            AppColors.primaryGreen,
-          ),
+          child: _actionButton("Acheter", Icons.arrow_upward, AppColors.primaryGreen, onPressed: () {
+            _showDialog("Paiement", "L’API de réception d’argent n’est pas encore obtenue.");
+          }),
         ),
         const SizedBox(width: 16),
         Expanded(
-          child: _actionButton(
-            "Vendre",
-            Icons.arrow_downward,
-            AppColors.primaryRed,
-          ),
+          child: _actionButton("Vendre", Icons.arrow_downward, AppColors.primaryRed, onPressed: () {
+            _showDialog("Paiement", "L’API de réception d’argent n’est pas encore obtenue.");
+          }),
         ),
       ],
     );
   }
 
-  Widget _actionButton(String label, IconData icon, Color color) {
+  Widget _actionButton(String label, IconData icon, Color color, {required VoidCallback onPressed}) {
     return GestureDetector(
-      onTap: () {},
+      onTap: onPressed,
       child: Container(
         height: 160,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(20),
-        ),
+        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(20)),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

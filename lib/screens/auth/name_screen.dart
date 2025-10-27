@@ -1,10 +1,13 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '/utils/app_theme.dart';
 import 'secret_code_screen.dart';
 
 class NameScreen extends StatefulWidget {
-  const NameScreen({super.key});
+  final String phoneNumber;
+
+  const NameScreen({super.key, required this.phoneNumber});
 
   @override
   State<NameScreen> createState() => _NameScreenState();
@@ -12,19 +15,61 @@ class NameScreen extends StatefulWidget {
 
 class _NameScreenState extends State<NameScreen> {
   final _controller = TextEditingController();
+  final _supabase = Supabase.instance.client;
+  bool _loading = false;
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-  
+
   @override
   void initState() {
     super.initState();
     _controller.addListener(() {
-      setState(() {}); // Re-build to check button state
+      setState(() {});
     });
+  }
+
+  Future<void> _onContinue() async {
+    final name = _controller.text.trim();
+    if (name.isEmpty) return;
+
+    setState(() => _loading = true);
+
+    try {
+      // ✅ CORRECTION : Supprimer updated_at qui n'existe pas
+      final response = await _supabase
+          .from('Users')
+          .update({
+            'first_name': name,
+            // SUPPRIMER cette ligne : 'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('phone_number', widget.phoneNumber)
+          .select();
+
+      debugPrint('✅ Nom sauvegardé: $name pour ${widget.phoneNumber}');
+      debugPrint('✅ Réponse Supabase: $response');
+
+      // ✅ Continuer vers la création du PIN
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => SecretCodeScreen(
+            phoneNumber: widget.phoneNumber,
+            isCreating: true,
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('❌ Erreur sauvegarde nom: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erreur sauvegarde: $e')));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
@@ -41,17 +86,32 @@ class _NameScreenState extends State<NameScreen> {
         child: Column(
           children: [
             Container(
-              width: 60, height: 60,
-              decoration: BoxDecoration(color: AppColors.card.withOpacity(0.5), shape: BoxShape.circle),
-              child: const Center(child: Icon(Icons.person_add_alt_1, color: AppColors.primaryGreen)),
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: AppColors.card.withOpacity(0.5),
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.person_add_alt_1,
+                  color: AppColors.primaryGreen,
+                ),
+              ),
             ),
             const SizedBox(height: 32),
-            const Text("Veuillez entrer votre nom et prenoms légal comple.", style: AppTextStyles.heading1, textAlign: TextAlign.center),
+            const Text(
+              "Veuillez entrer votre nom et prénoms légaux complets.",
+              style: AppTextStyles.heading1,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 48),
             TextField(
               controller: _controller,
               style: const TextStyle(color: AppColors.text, fontSize: 20),
               decoration: const InputDecoration(
+                hintText: "Nom et prénoms",
+                hintStyle: TextStyle(color: AppColors.textFaded),
                 enabledBorder: UnderlineInputBorder(
                   borderSide: BorderSide(color: AppColors.border),
                 ),
@@ -61,7 +121,7 @@ class _NameScreenState extends State<NameScreen> {
               ),
             ),
             const SizedBox(height: 32),
-             Center(
+            Center(
               child: RichText(
                 text: TextSpan(
                   style: AppTextStyles.body.copyWith(fontSize: 14),
@@ -70,7 +130,10 @@ class _NameScreenState extends State<NameScreen> {
                     TextSpan(
                       text: "conditions d'utilisation",
                       style: AppTextStyles.link,
-                      recognizer: TapGestureRecognizer()..onTap = () { /* Handle link tap */ },
+                      recognizer: TapGestureRecognizer()
+                        ..onTap = () {
+                          // TODO: Ouvrir les CGU
+                        },
                     ),
                   ],
                 ),
@@ -78,16 +141,34 @@ class _NameScreenState extends State<NameScreen> {
             ),
             const Spacer(),
             ElevatedButton(
-              onPressed: _controller.text.trim().isEmpty ? null : () {
-                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SecretCodeScreen()));
-              },
+              onPressed: (_controller.text.trim().isEmpty || _loading)
+                  ? null
+                  : _onContinue,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryGreen,
                 disabledBackgroundColor: AppColors.card,
                 minimumSize: const Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              child: const Text("Continue", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              child: _loading
+                  ? const SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      "Continuer",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
             const SizedBox(height: 40),
           ],

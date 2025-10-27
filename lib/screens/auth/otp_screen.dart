@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import '/utils/app_theme.dart';
-import '/main.dart'; // 👈 Pour utiliser showOtpNotification()
+import '/main.dart'; // pour showOtpNotification()
 import '/widgets/numeric_keypad.dart';
 import 'name_screen.dart';
+import 'secret_code_screen.dart';
 
 class OtpScreen extends StatefulWidget {
-  const OtpScreen({super.key});
+  final String phoneNumber; // Format: 07... (sans +225)
+  final bool isNewUser;
+  final String fullPhone; // Format: +22507...
+
+  const OtpScreen({
+    super.key, 
+    required this.phoneNumber,
+    required this.isNewUser,
+    required this.fullPhone,
+  });
 
   @override
   State<OtpScreen> createState() => _OtpScreenState();
@@ -22,10 +32,9 @@ class _OtpScreenState extends State<OtpScreen> {
     _sendOtp();
   }
 
-  // 🔐 Génération et affichage du code OTP via notification
-  void _sendOtp() async {
+  Future<void> _sendOtp() async {
     final code = (1000 + Random().nextInt(9000)).toString();
-    await showOtpNotification(code); // 👈 Affiche la notification
+    await showOtpNotification(code);
     setState(() {
       _generatedOtp = code;
     });
@@ -38,8 +47,25 @@ class _OtpScreenState extends State<OtpScreen> {
       });
       if (_otp.length == 4) {
         if (_otp == _generatedOtp) {
-          Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => const NameScreen()));
+          // ✅ REDIRECTION CORRECTE SELON LE TYPE D'UTILISATEUR
+          if (widget.isNewUser) {
+            // Nouvel utilisateur → NameScreen
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => NameScreen(phoneNumber: widget.fullPhone),
+              ),
+            );
+          } else {
+            // Utilisateur existant → SecretCodeScreen (vérification PIN)
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => SecretCodeScreen(
+                  phoneNumber: widget.fullPhone,
+                  isCreating: false, // Mode vérification
+                ),
+              ),
+            );
+          }
         } else {
           _showError();
         }
@@ -65,9 +91,7 @@ class _OtpScreenState extends State<OtpScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              setState(() {
-                _otp = '';
-              });
+              setState(() => _otp = '');
             },
             child: const Text("Réessayer"),
           )
@@ -97,13 +121,20 @@ class _OtpScreenState extends State<OtpScreen> {
                 shape: BoxShape.circle,
               ),
               child: const Center(
-                  child: Icon(Icons.chat_bubble_outline,
-                      color: AppColors.primaryGreen)),
+                child:
+                    Icon(Icons.chat_bubble_outline, color: AppColors.primaryGreen),
+              ),
             ),
             const SizedBox(height: 32),
-            const Text(
-              "Vérifie la notification pour ton code MobileCrypto.",
+            Text(
+              "Un code a été envoyé à ${widget.phoneNumber}",
               style: AppTextStyles.heading1,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              "Saisis ton code OTP reçu par notification",
+              style: AppTextStyles.body,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 48),

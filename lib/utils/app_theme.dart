@@ -11,18 +11,32 @@ class AppColors {
 }
 
 class AppTextStyles {
-  static const TextStyle heading1 = TextStyle(
+  static const heading1 = TextStyle(
     color: AppColors.text,
     fontSize: 28,
     fontWeight: FontWeight.bold,
   );
-  static const TextStyle body = TextStyle(
-    color: AppColors.textFaded,
-    fontSize: 16,
+
+  static const heading2 = TextStyle(
+    color: AppColors.text,
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
   );
-   static const TextStyle link = TextStyle(
-    color: Color(0xFF60A5FA),
+
+  static const body = TextStyle(
+    color: AppColors.text,
     fontSize: 14,
+  );
+
+  static const bodyFaded = TextStyle(
+    color: AppColors.textFaded,
+    fontSize: 14,
+  );
+
+  static const link = TextStyle(
+    color: AppColors.primaryGreen,
+    fontSize: 14,
+    fontWeight: FontWeight.bold,
     decoration: TextDecoration.underline,
   );
 }
