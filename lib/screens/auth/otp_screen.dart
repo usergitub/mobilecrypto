@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import '/utils/app_theme.dart';
-import '/main.dart'; // pour showOtpNotification()
 import '/widgets/numeric_keypad.dart';
 import 'name_screen.dart';
 import 'secret_code_screen.dart';
+import '/utils/notification_service.dart'; // ✅ IMPORT CORRECT
 
 class OtpScreen extends StatefulWidget {
-  final String phoneNumber; // Format: 07... (sans +225)
+  final String phoneNumber;
   final bool isNewUser;
-  final String fullPhone; // Format: +22507...
+  final String fullPhone;
 
   const OtpScreen({
     super.key, 
@@ -34,7 +34,7 @@ class _OtpScreenState extends State<OtpScreen> {
 
   Future<void> _sendOtp() async {
     final code = (1000 + Random().nextInt(9000)).toString();
-    await showOtpNotification(code);
+    await NotificationService.showOtpNotification(code); // ✅ UTILISER LE SERVICE
     setState(() {
       _generatedOtp = code;
     });
@@ -47,7 +47,6 @@ class _OtpScreenState extends State<OtpScreen> {
       });
       if (_otp.length == 4) {
         if (_otp == _generatedOtp) {
-          // ✅ REDIRECTION CORRECTE SELON LE TYPE D'UTILISATEUR
           if (widget.isNewUser) {
             // Nouvel utilisateur → NameScreen
             Navigator.of(context).push(
@@ -61,7 +60,7 @@ class _OtpScreenState extends State<OtpScreen> {
               MaterialPageRoute(
                 builder: (_) => SecretCodeScreen(
                   phoneNumber: widget.fullPhone,
-                  isCreating: false, // Mode vérification
+                  isCreating: false,
                 ),
               ),
             );
@@ -121,8 +120,7 @@ class _OtpScreenState extends State<OtpScreen> {
                 shape: BoxShape.circle,
               ),
               child: const Center(
-                child:
-                    Icon(Icons.chat_bubble_outline, color: AppColors.primaryGreen),
+                child: Icon(Icons.chat_bubble_outline, color: AppColors.primaryGreen),
               ),
             ),
             const SizedBox(height: 32),

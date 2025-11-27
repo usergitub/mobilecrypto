@@ -1,30 +1,31 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:mobilecrypto/main.dart';
+import 'package:mobilecrypto/screens/auth/login_screen.dart';
+import 'package:mobilecrypto/utils/supabase_config.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  // ✅ INITIALISATION AVANT CHAQUE TEST
+  setUp(() async {
+    // Initialiser Supabase pour chaque test
+    await SupabaseConfig.init();
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  testWidgets('App startup test', (WidgetTester tester) async {
+    // Construire l'app après l'initialisation
+    await tester.pumpWidget(MyApp(initialPage: const SignUpScreen()));
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // Vérifications
+    expect(find.byType(SignUpScreen), findsOneWidget);
+    expect(find.text('Pour commencer, entrez votre numéro mobile'), findsOneWidget);
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('Home screen navigation test', (WidgetTester tester) async {
+    await tester.pumpWidget(MyApp(initialPage: const SignUpScreen()));
+    
+    // Vérifier les éléments de base de l'écran de connexion
+    expect(find.byType(SignUpScreen), findsOneWidget);
+    expect(find.text('+225'), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
   });
 }

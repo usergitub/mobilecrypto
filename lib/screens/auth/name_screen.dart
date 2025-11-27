@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '/utils/app_theme.dart';
 import 'secret_code_screen.dart';
 
@@ -39,18 +40,22 @@ class _NameScreenState extends State<NameScreen> {
     setState(() => _loading = true);
 
     try {
-      // ✅ CORRECTION : Supprimer updated_at qui n'existe pas
+      // Sauvegarde du nom dans Supabase
       final response = await _supabase
           .from('Users')
           .update({
             'first_name': name,
-            // SUPPRIMER cette ligne : 'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('phone_number', widget.phoneNumber)
           .select();
 
       debugPrint('✅ Nom sauvegardé: $name pour ${widget.phoneNumber}');
       debugPrint('✅ Réponse Supabase: $response');
+
+      // ✅ Sauvegarde locale (pour affichage immédiat dans l’app)
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString("userName", name);
+      await prefs.setString("userPhone", widget.phoneNumber);
 
       // ✅ Continuer vers la création du PIN
       if (!mounted) return;
@@ -64,9 +69,11 @@ class _NameScreenState extends State<NameScreen> {
       );
     } catch (e) {
       debugPrint('❌ Erreur sauvegarde nom: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Erreur sauvegarde: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur sauvegarde: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }

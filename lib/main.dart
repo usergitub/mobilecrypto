@@ -1,36 +1,44 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'utils/supabase_config.dart';
-import 'screens/auth/login_screen.dart';
 import 'utils/app_theme.dart';
-
-final FlutterLocalNotificationsPlugin notifications =
-    FlutterLocalNotificationsPlugin();
+import 'utils/notification_service.dart'; // ✅ IMPORT AJOUTÉ
+import 'screens/auth/login_screen.dart';
+import 'screens/auth/secret_code_screen.dart';
+import 'screens/home/home_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 🧩 Initialisation de Supabase
   await SupabaseConfig.init();
+  await NotificationService.init(); // ✅ UTILISER LE SERVICE
 
-  // 🔔 Initialisation des notifications locales
-  await _initNotifications();
+  // ✅ CHARGER LA SESSION LOCALE
+  final prefs = await SharedPreferences.getInstance();
+  final isLoggedIn = prefs.getBool("isLoggedIn") ?? false;
+  final savedPhone = prefs.getString("userPhone");
 
-  runApp(const MyApp());
-}
+  // ✅ DÉTERMINATION DE LA PAGE DE DÉMARRAGE
+  late Widget initialPage;
 
-// 🧠 Fonction d’initialisation des notifications
-Future<void> _initNotifications() async {
-  const AndroidInitializationSettings androidInit =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
-  const InitializationSettings initSettings =
-      InitializationSettings(android: androidInit);
+  if (isLoggedIn && savedPhone != null) {
+    // ✅ UTILISATEUR CONNECTÉ : Aller directement au code secret
+    initialPage = SecretCodeScreen(
+      phoneNumber: savedPhone,
+      isCreating: false,
+    );
+  } else {
+    // ✅ UTILISATEUR DÉCONNECTÉ OU NOUVEAU : Commencer par le numéro de téléphone
+    initialPage = const SignUpScreen();
+  }
 
-  await notifications.initialize(initSettings);
+  runApp(MyApp(initialPage: initialPage));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final Widget initialPage;
+
+  const MyApp({super.key, required this.initialPage});
 
   @override
   Widget build(BuildContext context) {
@@ -38,37 +46,19 @@ class MyApp extends StatelessWidget {
       title: 'MobileCrypto',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        fontFamily: 'Poppins',
+        fontFamily: 'SpaceGrotesk',
         scaffoldBackgroundColor: AppColors.background,
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.green,
           brightness: Brightness.dark,
-          background: AppColors.background,
         ),
         useMaterial3: true,
       ),
-      home: const SignUpScreen(),
+      routes: {
+        '/login': (context) => const SignUpScreen(),
+        '/home': (context) => const HomeScreen(),
+      },
+      home: initialPage,
     );
   }
-}
-
-// 📲 Fonction pour afficher une notification OTP
-Future<void> showOtpNotification(String code) async {
-  const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-    'otp_channel',
-    'OTP Notifications',
-    channelDescription: 'Affiche les OTP envoyés pour la vérification',
-    importance: Importance.max,
-    priority: Priority.high,
-  );
-
-  const NotificationDetails notifDetails =
-      NotificationDetails(android: androidDetails);
-
-  await notifications.show(
-    0,
-    'Code de vérification MobileCrypto',
-    'Votre code est : $code',
-    notifDetails,
-  );
 }
