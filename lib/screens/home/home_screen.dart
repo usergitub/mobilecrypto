@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '/utils/app_theme.dart';
+// Assurez-vous que le chemin vers BuySellScreen est correct.
+// Je suppose qu'il est dans lib/screens/transactions.
+import '../transactions/buy_sell_screen.dart'; // NOUVEL IMPORT
 import '../home/transactions_screen.dart';
 import '../home/settings_screen.dart';
 import '../home/profile_screen.dart';
@@ -19,7 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late Timer _timer;
 
   final List<Widget> _screens = const [
-    Placeholder(), // remplacé par Home contenu
+    Placeholder(), // Ceci sera remplacé par _buildHomeContent()
     TransactionsScreen(),
     SettingsScreen(),
     ProfileScreen(),
@@ -49,14 +52,25 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(title, style: AppTextStyles.heading2),
-        content: Text(message, style: AppTextStyles.body),
+        backgroundColor: AppColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: Text(title, style: AppTextStyles.heading2.copyWith(color: AppColors.text)),
+        content: Text(message, style: AppTextStyles.body.copyWith(color: AppColors.textFaded)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("OK", style: AppTextStyles.link),
+            child: Text("OK", style: AppTextStyles.link.copyWith(color: AppColors.primaryGreen, fontWeight: FontWeight.bold)),
           ),
         ],
+      ),
+    );
+  }
+
+  // --- NOUVELLE FONCTION DE NAVIGATION ---
+  void _navigateToBuySell(bool isBuying) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => BuySellScreen(isBuying: isBuying),
       ),
     );
   }
@@ -67,7 +81,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_selectedIndex == 0) {
       currentScreen = _buildHomeContent();
     } else {
+      // Pour les onglets de navigation, affiche une modale si ce n'est pas "Home"
       currentScreen = _screens[_selectedIndex];
+      // Note: Votre logique de navigation dans onTap est plus simple,
+      // mais si vous voulez des modales, il faudrait la gérer dans onTap.
     }
 
     return Scaffold(
@@ -75,7 +92,14 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(child: currentScreen),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
+        onTap: (index) {
+          if (index == 0) {
+            setState(() => _selectedIndex = index);
+          } else {
+            // Affiche un message d'état pour les autres onglets
+            _showDialog("Page en développement", "L'application est en cours de développement. Testez et donnez votre avis.");
+          }
+        },
         backgroundColor: AppColors.card,
         type: BottomNavigationBarType.fixed,
         selectedItemColor: AppColors.primaryGreen,
@@ -258,15 +282,21 @@ class _HomeScreenState extends State<HomeScreen> {
     return Row(
       children: [
         Expanded(
-          child: _actionButton("Acheter", Icons.arrow_upward, AppColors.primaryGreen, onPressed: () {
-            _showDialog("Paiement", "L’API de réception d’argent n’est pas encore obtenue.");
-          }),
+          child: _actionButton(
+            "Acheter", 
+            Icons.arrow_upward, 
+            AppColors.primaryGreen, 
+            onPressed: () => _navigateToBuySell(true), // Nouvelle action: naviguer pour acheter
+          ),
         ),
         const SizedBox(width: 16),
         Expanded(
-          child: _actionButton("Vendre", Icons.arrow_downward, AppColors.primaryRed, onPressed: () {
-            _showDialog("Paiement", "L’API de réception d’argent n’est pas encore obtenue.");
-          }),
+          child: _actionButton(
+            "Vendre", 
+            Icons.arrow_downward, 
+            AppColors.primaryRed, 
+            onPressed: () => _navigateToBuySell(false), // Nouvelle action: naviguer pour vendre
+          ),
         ),
       ],
     );
