@@ -1,54 +1,5 @@
 import 'package:flutter/material.dart';
 
-// Couleurs de l'application
-class AppColors {
-  static const Color background = Color(0xFF0F172A);
-  static const Color card = Color(0xFF1E293B);
-  static const Color text = Color(0xFFFFFFFF);
-  static const Color textFaded = Color(0xFF94A3B8);
-  static const Color primaryGreen = Color(0xFF10B981);
-  static const Color primaryRed = Color(0xFFEF4444);
-  static const Color border = Color(0xFF334155);
-}
-
-// Styles de texte de l'application
-class AppTextStyles {
-  static const TextStyle heading1 = TextStyle(
-    fontSize: 28,
-    fontWeight: FontWeight.bold,
-    color: AppColors.text,
-    fontFamily: 'SpaceGrotesk',
-  );
-
-  static const TextStyle heading2 = TextStyle(
-    fontSize: 22,
-    fontWeight: FontWeight.w600,
-    color: AppColors.text,
-    fontFamily: 'SpaceGrotesk',
-  );
-
-  static const TextStyle body = TextStyle(
-    fontSize: 16,
-    fontWeight: FontWeight.normal,
-    color: AppColors.text,
-    fontFamily: 'SpaceGrotesk',
-  );
-
-  static const TextStyle bodyFaded = TextStyle(
-    fontSize: 16,
-    fontWeight: FontWeight.normal,
-    color: AppColors.textFaded,
-    fontFamily: 'SpaceGrotesk',
-  );
-
-  static const TextStyle link = TextStyle(
-    fontSize: 16,
-    fontWeight: FontWeight.w500,
-    color: AppColors.primaryGreen,
-    fontFamily: 'SpaceGrotesk',
-  );
-}
-
 class AppTheme {
   // Couleur principale pour votre application (un bleu crypto)
   static const Color primaryColor = Color(0xFF007BFF); 
@@ -110,5 +61,59 @@ class AppTheme {
     progressIndicatorTheme: const ProgressIndicatorThemeData(
       color: primaryColor,
     ),
+  );
+}
+
+class AppColors {
+  // Couleurs de fond
+  static const Color background = Color(0xFF0A0E27);
+  static const Color card = Color(0xFF1A1F3A);
+  
+  // Couleurs de texte
+  static const Color text = Color(0xFFFFFFFF);
+  static const Color textFaded = Color(0xFF8E8E93);
+  
+  // Couleurs principales
+  static const Color primaryGreen = Color(0xFF00D4AA);
+  static const Color primaryRed = Color(0xFFFF3B30);
+  
+  // Couleurs de bordure
+  static const Color border = Color(0xFF2C2C54);
+}
+
+class AppTextStyles {
+  static const TextStyle heading1 = TextStyle(
+    fontFamily: 'SpaceGrotesk',
+    fontSize: 28,
+    fontWeight: FontWeight.bold,
+    color: AppColors.text,
+  );
+  
+  static const TextStyle heading2 = TextStyle(
+    fontFamily: 'SpaceGrotesk',
+    fontSize: 20,
+    fontWeight: FontWeight.w600,
+    color: AppColors.text,
+  );
+  
+  static const TextStyle body = TextStyle(
+    fontFamily: 'SpaceGrotesk',
+    fontSize: 16,
+    fontWeight: FontWeight.normal,
+    color: AppColors.text,
+  );
+  
+  static const TextStyle bodyFaded = TextStyle(
+    fontFamily: 'SpaceGrotesk',
+    fontSize: 16,
+    fontWeight: FontWeight.normal,
+    color: AppColors.textFaded,
+  );
+  
+  static const TextStyle link = TextStyle(
+    fontFamily: 'SpaceGrotesk',
+    fontSize: 16,
+    fontWeight: FontWeight.w500,
+    color: AppColors.primaryGreen,
   );
 }

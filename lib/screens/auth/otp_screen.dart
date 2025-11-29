@@ -106,7 +106,7 @@ class _OtpScreenState extends State<OtpScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: const Icon(Icons.arrow_back, color: AppColors.text),
+        leading: Icon(Icons.arrow_back, color: AppColors.text),
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24.0),

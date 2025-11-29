@@ -37,7 +37,7 @@ class KeypadWidget extends StatelessWidget {
       child: Center(
         child: Text(
           value,
-          style: const TextStyle(color: AppColors.text, fontSize: 24),
+          style: TextStyle(color: AppColors.text, fontSize: 24),
         ),
       ),
     );

@@ -9,7 +9,7 @@ class TransactionsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Mes Reçus', style: AppTextStyles.heading2),
+        title: Text('Mes Reçus', style: AppTextStyles.heading2),
         backgroundColor: AppColors.background,
         elevation: 0,
         centerTitle: true,
@@ -26,7 +26,7 @@ class TransactionsScreen extends StatelessWidget {
                   color: AppColors.card,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.receipt_long, color: AppColors.textFaded, size: 50),
+                child: Icon(Icons.receipt_long, color: AppColors.textFaded, size: 50),
               ),
               const SizedBox(height: 24),
               const Text(

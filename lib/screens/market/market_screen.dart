@@ -17,6 +17,9 @@ class _MarketScreenState extends State<MarketScreen> {
   List<Coin> _allCoins = [];
   List<Coin> _filteredCoins = [];
   bool _loading = true;
+  bool _loadingMore = false;
+  int _page = 1;
+  final int _perPage = 50;
 
   // Valeurs minimales de vente par crypto (en symboles)
   final Map<String, double> _minSellAmounts = {
@@ -36,23 +39,91 @@ class _MarketScreenState extends State<MarketScreen> {
 
   Future<void> _loadCoins() async {
     try {
-      // Charger les principales cryptomonnaies
-      final coins = await CoinGeckoService.fetchCoinsByIds([
+      // Liste des monnaies obligatoires spécifiées
+      final requiredCoinIds = [
+        'solana',
+        'blur',
+        'nakamoto-games',
+        'cosmos',
+        'bitcoin-bep2',
+        'arkham',
+        'coredao',
+        'avalaunch',
+        'osmosis',
+        'multiversx',
+        'arbitrum',
+        'biswap',
+        'nosana',
+        'aerodrome-finance',
+        'tor',
+        'xswap-protocol',
+      ];
+      
+      // Liste des monnaies principales par défaut
+      final defaultCoinIds = [
         'bitcoin',
         'ethereum',
         'tether',
         'ripple',
         'binancecoin',
         'usd-coin',
-      ]);
+      ];
+      
+      // Charger d'abord les monnaies obligatoires et principales
+      final allCoinIds = [...requiredCoinIds, ...defaultCoinIds];
+      final requiredCoins = await CoinGeckoService.fetchCoinsByIds(allCoinIds);
+      
+      // Charger ensuite les top coins depuis CoinGecko
+      final topCoins = await CoinGeckoService.fetchTopCoins(perPage: _perPage, page: _page);
+      
+      // Combiner et éviter les doublons
+      final Map<String, Coin> uniqueCoins = {};
+      for (var coin in requiredCoins) {
+        uniqueCoins[coin.id] = coin;
+      }
+      for (var coin in topCoins) {
+        if (!uniqueCoins.containsKey(coin.id)) {
+          uniqueCoins[coin.id] = coin;
+        }
+      }
+      
       setState(() {
-        _allCoins = coins;
-        _filteredCoins = coins;
+        _allCoins = uniqueCoins.values.toList();
+        _filteredCoins = _allCoins;
         _loading = false;
       });
     } catch (e) {
+      debugPrint("Erreur chargement monnaies: $e");
       setState(() {
         _loading = false;
+      });
+    }
+  }
+  
+  Future<void> _loadMoreCoins() async {
+    if (_loadingMore) return;
+    
+    setState(() {
+      _loadingMore = true;
+    });
+    
+    try {
+      _page++;
+      final moreCoins = await CoinGeckoService.fetchTopCoins(perPage: _perPage, page: _page);
+      
+      // Éviter les doublons
+      final existingIds = _allCoins.map((c) => c.id).toSet();
+      final newCoins = moreCoins.where((coin) => !existingIds.contains(coin.id)).toList();
+      
+      setState(() {
+        _allCoins.addAll(newCoins);
+        _filteredCoins = _allCoins;
+        _loadingMore = false;
+      });
+    } catch (e) {
+      debugPrint("Erreur chargement monnaies supplémentaires: $e");
+      setState(() {
+        _loadingMore = false;
       });
     }
   }
@@ -148,10 +219,24 @@ class _MarketScreenState extends State<MarketScreen> {
                         )
                       : ListView.builder(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: _filteredCoins.length,
+                          itemCount: _filteredCoins.length + (_loadingMore ? 1 : 0),
                           itemBuilder: (context, index) {
+                            if (index == _filteredCoins.length) {
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(16.0),
+                                  child: CircularProgressIndicator(),
+                                ),
+                              );
+                            }
+                            
                             final coin = _filteredCoins[index];
                             final minSell = _minSellAmounts[coin.id.toLowerCase()] ?? 5.0;
+                            
+                            // Charger plus de monnaies quand on approche de la fin
+                            if (index == _filteredCoins.length - 5 && !_loadingMore) {
+                              _loadMoreCoins();
+                            }
                             
                             return _buildCoinCard(coin, minSell);
                           },

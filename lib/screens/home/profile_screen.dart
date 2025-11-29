@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '/utils/app_theme.dart';
+import '/screens/home/settings_screen.dart';
+import '/screens/home/account_screen.dart';
+import '/screens/home/help_center_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -44,6 +48,200 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return '+225 ${cleaned.substring(0, 3)} ${cleaned.substring(3, 6)} ${cleaned.substring(6)}';
     }
     return phone;
+  }
+
+  void _showContactOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Contact',
+                style: AppTextStyles.heading2,
+              ),
+              const SizedBox(height: 20),
+              
+              // WhatsApp
+              _buildContactItem(
+                icon: Icons.chat,
+                title: 'WhatsApp',
+                subtitle: '+225 07 08 09 10 11',
+                color: const Color(0xFF25D366),
+                onTap: () async {
+                  final url = Uri.parse('https://wa.me/2250708091011');
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url);
+                  }
+                  Navigator.pop(context);
+                },
+              ),
+              
+              const SizedBox(height: 12),
+              
+              // Numéro d'appel
+              _buildContactItem(
+                icon: Icons.phone,
+                title: 'Appeler',
+                subtitle: '+225 07 08 09 10 11',
+                color: AppColors.primaryGreen,
+                onTap: () async {
+                  final url = Uri.parse('tel:+2250708091011');
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url);
+                  }
+                  Navigator.pop(context);
+                },
+              ),
+              
+              const SizedBox(height: 12),
+              
+              // Email
+              _buildContactItem(
+                icon: Icons.email,
+                title: 'Email',
+                subtitle: 'support@mobilecrypto.com',
+                color: AppColors.primaryGreen,
+                onTap: () async {
+                  final url = Uri.parse('mailto:support@mobilecrypto.com');
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url);
+                  }
+                  Navigator.pop(context);
+                },
+              ),
+              
+              const SizedBox(height: 12),
+              
+              // Réseaux sociaux
+              Text(
+                'Réseaux sociaux',
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.textFaded,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 12),
+              
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildSocialIcon(Icons.chat, 'Telegram', () async {
+                    final url = Uri.parse('https://t.me/mobilecrypto');
+                    if (await canLaunchUrl(url)) {
+                      await launchUrl(url);
+                    }
+                  }),
+                  _buildSocialIcon(Icons.alternate_email, 'Twitter/X', () async {
+                    final url = Uri.parse('https://twitter.com/mobilecrypto');
+                    if (await canLaunchUrl(url)) {
+                      await launchUrl(url);
+                    }
+                  }),
+                  _buildSocialIcon(Icons.facebook, 'Facebook', () async {
+                    final url = Uri.parse('https://facebook.com/mobilecrypto');
+                    if (await canLaunchUrl(url)) {
+                      await launchUrl(url);
+                    }
+                  }),
+                  _buildSocialIcon(Icons.camera_alt, 'Instagram', () async {
+                    final url = Uri.parse('https://instagram.com/mobilecrypto');
+                    if (await canLaunchUrl(url)) {
+                      await launchUrl(url);
+                    }
+                  }),
+                ],
+              ),
+              
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildContactItem({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white10),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppTextStyles.heading2.copyWith(fontSize: 16),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: AppTextStyles.bodyFaded.copyWith(fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, color: AppColors.textFaded, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSocialIcon(IconData icon, String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white10),
+            ),
+            child: Icon(icon, color: AppColors.primaryGreen, size: 24),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: AppTextStyles.bodyFaded.copyWith(fontSize: 10),
+          ),
+        ],
+      ),
+    );
   }
 
   void _performLogout(BuildContext context) async {
@@ -93,36 +291,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
           builder: (context, constraints) {
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: Column(
+          child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 20),
                   
                   // --- HEADER AVEC PROFIL UTILISATEUR ---
                   Row(
-                    children: [
+            children: [
                       // Avatar circulaire
-                      CircleAvatar(
+              CircleAvatar(
                         radius: 35,
-                        backgroundColor: AppColors.card,
-                        child: Text(
-                          _initialsFromName(userName),
-                          style: const TextStyle(
-                            color: AppColors.text,
+                backgroundColor: AppColors.card,
+                child: Text(
+                  _initialsFromName(userName),
+                  style: const TextStyle(
+                    color: AppColors.text,
                             fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
                       const SizedBox(width: 16),
-                      
+
                       // Nom et téléphone
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              userName,
+              Text(
+                userName,
                               style: AppTextStyles.heading2.copyWith(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -171,7 +369,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   
                   const SizedBox(height: 32),
-                  
+
                   // --- SECTION MENU ---
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 8),
@@ -186,7 +384,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           icon: Icons.person_outline,
                           title: 'Mon Compte',
                           onTap: () {
-                            // TODO: Naviguer vers la page Mon Compte
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const AccountScreen(),
+                              ),
+                            );
                           },
                         ),
                         const Divider(color: AppColors.border, height: 1),
@@ -196,7 +399,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           icon: Icons.settings_outlined,
                           title: 'Paramètres',
                           onTap: () {
-                            // TODO: Naviguer vers les paramètres
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const SettingsScreen(),
+                              ),
+                            );
                           },
                         ),
                         const Divider(color: AppColors.border, height: 1),
@@ -206,7 +414,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           icon: Icons.help_outline,
                           title: 'Centre d\'aide',
                           onTap: () {
-                            // TODO: Naviguer vers le centre d'aide
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const HelpCenterScreen(),
+                              ),
+                            );
                           },
                         ),
                         const Divider(color: AppColors.border, height: 1),
@@ -215,9 +428,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         _buildMenuItem(
                           icon: Icons.phone_outlined,
                           title: 'Contact',
-                          onTap: () {
-                            // TODO: Ouvrir les options de contact
-                          },
+                          onTap: () => _showContactOptions(context),
                         ),
                         const Divider(color: AppColors.border, height: 1),
                         
@@ -230,9 +441,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ],
                     ),
-                  ),
-                  
-                  const SizedBox(height: 24),
+                ),
+
+              const SizedBox(height: 24),
                   
                   // --- BLOC DE TEXTE INFORMATIF ---
                   RichText(
@@ -256,7 +467,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                   ),
-                  
+
                   const SizedBox(height: 20),
                   // Espace flexible
                   Expanded(child: Container()),
@@ -316,9 +527,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           size: 8,
                         ),
                       ),
-                    ),
-                ],
               ),
+            ],
+          ),
             ),
             const SizedBox(width: 16),
             

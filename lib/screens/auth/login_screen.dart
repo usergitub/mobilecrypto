@@ -154,7 +154,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: const Icon(Icons.arrow_back, color: AppColors.text),
+        leading: Icon(Icons.arrow_back, color: AppColors.text),
       ),
       body: SafeArea(
         child: SingleChildScrollView(

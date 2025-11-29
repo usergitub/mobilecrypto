@@ -39,6 +39,10 @@ class _BuySellScreenState extends State<BuySellScreen> {
   
   // Flag pour éviter les boucles infinies lors des mises à jour
   bool _isUpdating = false;
+  
+  // Variables pour le swipe button
+  double _swipePosition = 0.0;
+  double _maxSwipeDistance = 0.0;
 
   double get finalUnitPrice {
     return widget.isBuying
@@ -284,19 +288,19 @@ class _BuySellScreenState extends State<BuySellScreen> {
           decoration: BoxDecoration(
             color: AppColors.card,
             shape: BoxShape.circle,
-          ),
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back_ios, color: AppColors.text, size: 18),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
         ),
+          child: IconButton(
+            icon: Icon(Icons.arrow_back_ios, color: AppColors.text, size: 18),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
               // --- CARTE "VOUS PAYEZ" ---
               Container(
                 padding: const EdgeInsets.all(20),
@@ -360,7 +364,7 @@ class _BuySellScreenState extends State<BuySellScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                Text(
+            Text(
                                   _selectedPayMethod,
                                   style: const TextStyle(
                                     color: Colors.white,
@@ -374,23 +378,23 @@ class _BuySellScreenState extends State<BuySellScreen> {
                                     Icons.arrow_drop_down,
                                     color: Colors.white,
                                     size: 20,
-                                  ),
+              ),
                                 ],
                               ],
                             ),
                           ),
                         ),
                       ],
-                    ),
+            ),
                     const SizedBox(height: 20),
                     // Champ de saisie du montant
-                    TextField(
+            TextField(
                       controller: _payAmountController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       style: AppTextStyles.heading1.copyWith(
                         fontSize: 36,
                       ),
-                      decoration: InputDecoration(
+              decoration: InputDecoration(
                         hintText: '00',
                         hintStyle: TextStyle(
                           color: AppColors.text.withOpacity(0.5),
@@ -403,8 +407,8 @@ class _BuySellScreenState extends State<BuySellScreen> {
                           fontSize: 18,
                           color: AppColors.textFaded,
                         ),
-                      ),
-                      onChanged: (_) => setState(() {}),
+              ),
+              onChanged: (_) => setState(() {}),
                     ),
                   ],
                 ),
@@ -430,9 +434,9 @@ class _BuySellScreenState extends State<BuySellScreen> {
                     ),
                   ),
                 ),
-              ),
+            ),
 
-              const SizedBox(height: 20),
+            const SizedBox(height: 20),
 
               // --- CARTE "VOUS RECEVEZ" ---
               Container(
@@ -561,7 +565,7 @@ class _BuySellScreenState extends State<BuySellScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text(
+            Text(
                     widget.isBuying
                         ? '1 ${widget.coinSymbol.toUpperCase()} = ${finalUnitPrice.toStringAsFixed(0)} XOF'
                         : '1 ${widget.coinSymbol.toUpperCase()} = ${finalUnitPrice.toStringAsFixed(0)} XOF',
@@ -570,7 +574,7 @@ class _BuySellScreenState extends State<BuySellScreen> {
                     ),
                   ),
                 ],
-              ),
+            ),
 
               const SizedBox(height: 24),
 
@@ -628,77 +632,137 @@ class _BuySellScreenState extends State<BuySellScreen> {
 
               const SizedBox(height: 40),
 
-              // --- BOUTON CONTINUE ---
-              GestureDetector(
-                onTap: calculatedTotal > 0
-                    ? () {
-                        // Simuler une transaction qui échoue (car pas d'API de paiement)
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => TransactionFailedScreen(
-                              errorMessage: 'La transaction n\'a pas pu être complétée car l\'API de paiement n\'est pas encore intégrée. Veuillez réessayer plus tard ou contacter le support client pour plus d\'informations.',
+              // --- BOUTON SWIPE TO CONTINUE ---
+              if (calculatedTotal > 0)
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    _maxSwipeDistance = constraints.maxWidth - 80;
+                    return Container(
+                      height: 60,
+                      decoration: BoxDecoration(
+                        color: AppColors.card.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Stack(
+                        children: [
+                          // Fond avec texte "Continue" (s'affiche seulement si pas glissé)
+                          AnimatedOpacity(
+                            duration: const Duration(milliseconds: 200),
+                            opacity: _swipePosition < 10 ? 1.0 : 0.0,
+                            child: Center(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'Glissez pour continuer',
+                                    style: AppTextStyles.body.copyWith(
+                                      color: AppColors.textFaded,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Icon(
+                                    Icons.arrow_forward,
+                                    color: AppColors.textFaded,
+                                    size: 18,
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        );
-                      }
-                    : null,
-                child: Container(
+                          // Texte "Continuer" qui apparaît quand on glisse
+                          if (_swipePosition > 10)
+                            Center(
+                              child: Text(
+                                'Continuer',
+                                style: AppTextStyles.heading2.copyWith(
+                                  color: AppColors.text,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                          // Bouton glissable
+                          AnimatedPositioned(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeOut,
+                            left: _swipePosition.clamp(0.0, _maxSwipeDistance),
+                            child: GestureDetector(
+                              onHorizontalDragUpdate: (details) {
+                                setState(() {
+                                  _swipePosition = (_swipePosition + details.delta.dx)
+                                      .clamp(0.0, _maxSwipeDistance);
+                                });
+                              },
+                              onHorizontalDragEnd: (details) {
+                                // Si on a glissé jusqu'à au moins 80% de la distance
+                                if (_swipePosition >= _maxSwipeDistance * 0.8) {
+                                  // Confirmer la transaction
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => TransactionFailedScreen(
+                                        errorMessage: 'La transaction n\'a pas pu être complétée car l\'API de paiement n\'est pas encore intégrée. Veuillez réessayer plus tard ou contacter le support client pour plus d\'informations.',
+                ),
+              ),
+                                  );
+                                  // Réinitialiser après la navigation
+                                  Future.delayed(const Duration(milliseconds: 100), () {
+                                    if (mounted) {
+                                      setState(() {
+                                        _swipePosition = 0.0;
+                                      });
+                                    }
+                                  });
+                                } else {
+                                  // Revenir à la position initiale avec animation
+                                  setState(() {
+                                    _swipePosition = 0.0;
+                                  });
+                                }
+                              },
+                              child: Container(
+                                width: 80,
+                                height: 60,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryGreen,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppColors.primaryGreen.withOpacity(0.3),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.arrow_forward,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                              ),
+              ),
+            ),
+          ],
+                      ),
+                    );
+                  },
+                )
+              else
+                Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 18),
                   decoration: BoxDecoration(
-                    color: calculatedTotal > 0
-                        ? AppColors.card
-                        : AppColors.card.withOpacity(0.5),
+                    color: AppColors.card.withOpacity(0.5),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(left: 20),
-                        child: Text(
-                          'Continue',
-                          style: AppTextStyles.heading2.copyWith(
-                            color: calculatedTotal > 0
-                                ? AppColors.text
-                                : AppColors.textFaded,
-                          ),
-                        ),
+                  child: Center(
+                    child: Text(
+                      'Entrez un montant pour continuer',
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.textFaded,
                       ),
-                      Padding(
-                        padding: const EdgeInsets.only(right: 20),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.chevron_right,
-                              color: calculatedTotal > 0
-                                  ? AppColors.text
-                                  : AppColors.textFaded,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 2),
-                            Icon(
-                              Icons.chevron_right,
-                              color: calculatedTotal > 0
-                                  ? AppColors.text
-                                  : AppColors.textFaded,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 2),
-                            Icon(
-                              Icons.chevron_right,
-                              color: calculatedTotal > 0
-                                  ? AppColors.text
-                                  : AppColors.textFaded,
-                              size: 20,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
 
               const SizedBox(height: 20),
             ],
@@ -729,38 +793,4 @@ class _BuySellScreenState extends State<BuySellScreen> {
     );
   }
 
-  void _showDialog({required String title, required String message}) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(title, style: AppTextStyles.heading2),
-        content: Text(message, style: AppTextStyles.body),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text("Annuler", style: AppTextStyles.body),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // TODO: Implémenter la logique de transaction
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    widget.isBuying
-                        ? "Transaction d'achat en cours..."
-                        : "Transaction de vente en cours...",
-                  ),
-                  backgroundColor: AppColors.primaryGreen,
-                ),
-              );
-            },
-            child: Text("Confirmer", style: AppTextStyles.link),
-          ),
-        ],
-      ),
-    );
-  }
 }
