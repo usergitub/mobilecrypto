@@ -25,6 +25,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     setState(() {
       userName = prefs.getString("userName") ?? "Utilisateur";
       userPhone = prefs.getString("userPhone") ?? "";
@@ -80,7 +81,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   if (await canLaunchUrl(url)) {
                     await launchUrl(url);
                   }
-                  Navigator.pop(context);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                  }
                 },
               ),
               
@@ -97,7 +100,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   if (await canLaunchUrl(url)) {
                     await launchUrl(url);
                   }
-                  Navigator.pop(context);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                  }
                 },
               ),
               
@@ -114,7 +119,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   if (await canLaunchUrl(url)) {
                     await launchUrl(url);
                   }
-                  Navigator.pop(context);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    Navigator.pop(context);
+                  }
                 },
               ),
               
@@ -190,7 +198,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               width: 50,
               height: 50,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
+                color: color.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 24),
@@ -273,6 +281,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _executeLogout(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isLoggedIn', false);
+    await prefs.remove('userPhone'); // Supprimer le numéro de téléphone
+    await prefs.remove('userName'); // Supprimer le nom d'utilisateur
+    await prefs.remove('pinCreated'); // Supprimer l'indicateur de PIN créé
+    debugPrint("✅ Déconnexion effectuée - toutes les données de session supprimées");
     
     if (context.mounted) {
       Navigator.of(context).pushNamedAndRemoveUntil(

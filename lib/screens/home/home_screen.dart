@@ -3,7 +3,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '/utils/app_theme.dart';
+import '/utils/responsive_helper.dart';
 import '/services/coingecko_service.dart';
 import '/models/coin.dart';
 
@@ -23,10 +25,11 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  final GlobalKey<_HomeContentState> _homeContentKey = GlobalKey<_HomeContentState>();
 
   // Liste des écrans
-  final List<Widget> _screens = [
-    const HomeContent(),
+  List<Widget> get _screens => [
+    HomeContent(key: _homeContentKey),
     const MarketScreen(),
     const TransactionsScreen(),
     const ProfileScreen(),
@@ -57,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   borderRadius: BorderRadius.circular(40),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.4),
+                      color: Colors.black.withValues(alpha: 0.4),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -85,6 +88,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return GestureDetector(
       onTap: () {
         setState(() => _selectedIndex = index);
+        // Recharger les données si on revient sur la page d'accueil
+        if (index == 0 && _homeContentKey.currentState != null) {
+          _homeContentKey.currentState!._reloadData();
+        }
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -137,6 +144,7 @@ class _HomeContentState extends State<HomeContent> {
   bool _loading = true;
   Timer? _timer;
   int _unreadNotificationsCount = 0;
+  bool _isOffline = false;
   
   // IDs des monnaies disponibles pour la watchlist
   final List<String> _availableCoinIds = [
@@ -153,6 +161,7 @@ class _HomeContentState extends State<HomeContent> {
   @override
   void initState() {
     super.initState();
+    _checkConnectivity();
     _fetchUserData();
     _loadData();
     _checkNotifications();
@@ -160,6 +169,32 @@ class _HomeContentState extends State<HomeContent> {
     _startLiveSimulation();
     // Vérifier les notifications contextuelles périodiquement
     _startContextualNotificationsCheck();
+    // Vérifier la connexion périodiquement
+    _startConnectivityCheck();
+  }
+  
+  Future<void> _checkConnectivity() async {
+    try {
+      final connectivityResult = await Connectivity().checkConnectivity();
+      final isOnline = !connectivityResult.contains(ConnectivityResult.none);
+      if (mounted) {
+        setState(() {
+          _isOffline = !isOnline;
+        });
+      }
+    } catch (e) {
+      debugPrint("Erreur vérification connexion: $e");
+    }
+  }
+  
+  void _startConnectivityCheck() {
+    Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      _checkConnectivity();
+    });
   }
 
   @override
@@ -207,22 +242,70 @@ class _HomeContentState extends State<HomeContent> {
 
   Future<void> _loadData() async {
     try {
-      // Charger les 2 monnaies par défaut (Bitcoin et Binance Coin)
-      final defaultCoins = await CoinGeckoService.fetchCoinsByIds(['bitcoin', 'binancecoin']);
+      final prefs = await SharedPreferences.getInstance();
       
-      // Charger toutes les monnaies disponibles
-      final allCoins = await CoinGeckoService.fetchCoinsByIds(_availableCoinIds);
+      // Charger la watchlist sauvegardée
+      final savedWatchlistIds = prefs.getStringList('watchlist_coin_ids');
+      
+      List<String> coinIdsToLoad;
+      if (savedWatchlistIds != null && savedWatchlistIds.isNotEmpty) {
+        // Utiliser la watchlist sauvegardée
+        coinIdsToLoad = savedWatchlistIds;
+      } else {
+        // Utiliser les 2 monnaies par défaut (Bitcoin et Binance Coin)
+        coinIdsToLoad = ['bitcoin', 'binancecoin'];
+      }
+      
+      // Charger les monnaies de la watchlist (avec support offline)
+      List<Coin> watchlistCoins = [];
+      try {
+        watchlistCoins = await CoinGeckoService.fetchCoinsByIds(coinIdsToLoad);
+      } catch (e) {
+        debugPrint("⚠️ Erreur chargement watchlist: $e - Mode offline possible");
+        // En mode offline, on peut avoir une liste vide ou partielle
+      }
+      
+      // Charger toutes les monnaies disponibles (avec support offline)
+      List<Coin> allCoins = [];
+      try {
+        allCoins = await CoinGeckoService.fetchCoinsByIds(_availableCoinIds);
+      } catch (e) {
+        debugPrint("⚠️ Erreur chargement monnaies disponibles: $e - Mode offline possible");
+        // En mode offline, utiliser au moins la watchlist
+        if (allCoins.isEmpty && watchlistCoins.isNotEmpty) {
+          allCoins = watchlistCoins;
+        }
+      }
       
       if (mounted) {
         setState(() {
-          _watchlistCoins = defaultCoins;
-          _availableCoins = allCoins;
+          _watchlistCoins = watchlistCoins;
+          _availableCoins = allCoins.isNotEmpty ? allCoins : watchlistCoins;
           _loading = false;
-      });
+        });
+        debugPrint("📱 Watchlist chargée: ${watchlistCoins.length} monnaies (${coinIdsToLoad.join(', ')})");
       }
     } catch (e) {
+      debugPrint("❌ Erreur chargement données: $e");
       if (mounted) setState(() => _loading = false);
     }
+  }
+  
+  Future<void> _saveWatchlist() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final coinIds = _watchlistCoins.map((c) => c.id).toList();
+      await prefs.setStringList('watchlist_coin_ids', coinIds);
+      debugPrint("✅ Watchlist sauvegardée avec ${coinIds.length} monnaies: $coinIds");
+    } catch (e) {
+      debugPrint("❌ Erreur sauvegarde watchlist: $e");
+    }
+  }
+  
+  // Méthode publique pour recharger les données
+  void _reloadData() {
+    _loadData();
+    _checkNotifications();
   }
   
   Future<void> _checkNotifications() async {
@@ -321,41 +404,113 @@ class _HomeContentState extends State<HomeContent> {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      children: [
-        const SizedBox(height: 20),
-        _buildHeader(),
-        const SizedBox(height: 24),
-        _buildBalanceCard(),
-        const SizedBox(height: 32),
-        _buildQuickActions(),
-        const SizedBox(height: 32),
-        _buildWatchlistHeader(),
-        const SizedBox(height: 16),
-        _buildWatchlist(),
-        const SizedBox(height: 120), // Espace pour la navbar
-      ],
+    final horizontalPad = ResponsiveHelper.horizontalPadding(context);
+    final spacing1 = ResponsiveHelper.spacing(context, 20);
+    final spacing2 = ResponsiveHelper.spacing(context, 24);
+    final spacing3 = ResponsiveHelper.spacing(context, 32);
+    final spacing4 = ResponsiveHelper.spacing(context, 16);
+    final bottomSpacing = ResponsiveHelper.spacing(context, 120);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.symmetric(horizontal: horizontalPad),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight,
+            ),
+            child: Column(
+              children: [
+                SizedBox(height: spacing1),
+                _buildHeader(context),
+                SizedBox(height: spacing2),
+                _buildBalanceCard(context),
+                SizedBox(height: spacing3),
+                _buildQuickActions(context),
+                SizedBox(height: spacing3),
+                _buildWatchlistHeader(context),
+                SizedBox(height: spacing4),
+                _buildWatchlist(context),
+                SizedBox(height: bottomSpacing), // Espace pour la navbar
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
+    final avatarRadius = ResponsiveHelper.spacing(context, 24);
+    final spacing = ResponsiveHelper.spacing(context, 12);
+    final fontSizeSmall = ResponsiveHelper.fontSize(context, 10);
+    final fontSizeHeading = ResponsiveHelper.fontSize(context, 20);
+    
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Row(
           children: [
             CircleAvatar(
-              radius: 24,
+              radius: avatarRadius,
               backgroundColor: AppColors.card,
-              child: const Icon(Icons.person, color: Colors.white),
+              child: Icon(
+                Icons.person,
+                color: Colors.white,
+                size: ResponsiveHelper.iconSize(context, 20),
+              ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: spacing),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("AKWABA", style: AppTextStyles.bodyFaded.copyWith(fontSize: 10, letterSpacing: 1.5)),
-                Text(_userFullName, style: AppTextStyles.heading2),
+                Row(
+                  children: [
+                    Text(
+                      "AKWABA",
+                      style: AppTextStyles.bodyFaded.copyWith(
+                        fontSize: fontSizeSmall,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    if (_isOffline) ...[
+                      SizedBox(width: spacing * 0.67),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: spacing * 0.5,
+                          vertical: spacing * 0.17,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.wifi_off,
+                              size: fontSizeSmall,
+                              color: Colors.orange,
+                            ),
+                            SizedBox(width: spacing * 0.33),
+                            Text(
+                              "Hors ligne",
+                              style: TextStyle(
+                                fontSize: fontSizeSmall * 0.8,
+                                color: Colors.orange,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                Text(
+                  _userFullName,
+                  style: AppTextStyles.heading2.copyWith(fontSize: fontSizeHeading),
+                ),
               ],
                     ),
                   ],
@@ -369,25 +524,40 @@ class _HomeContentState extends State<HomeContent> {
               ),
             ).then((_) {
               // Recharger le nombre de notifications après retour
-              _checkNotifications();
+              if (mounted) {
+                _checkNotifications();
+              }
             });
           },
           child: Stack(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: EdgeInsets.symmetric(
+                  horizontal: spacing,
+                  vertical: spacing * 0.67,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.card,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: Colors.white10),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.notifications_none, color: AppColors.primaryGreen, size: 18),
-                    SizedBox(width: 6),
-                    Text("Notification", style: TextStyle(color: Colors.white, fontSize: 12)),
-                  ],
+                    Icon(
+                      Icons.notifications_none,
+                      color: AppColors.primaryGreen,
+                      size: ResponsiveHelper.iconSize(context, 18),
                     ),
+                    SizedBox(width: spacing * 0.5),
+                    Text(
+                      "Notification",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: ResponsiveHelper.fontSize(context, 12),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               if (_unreadNotificationsCount > 0)
                 Positioned(
@@ -421,16 +591,26 @@ class _HomeContentState extends State<HomeContent> {
     );
   }
 
-  Widget _buildBalanceCard() {
+  Widget _buildBalanceCard(BuildContext context) {
+    final cardHeight = ResponsiveHelper.cardHeight(context, 20);
+    final buttonHeight = ResponsiveHelper.spacing(context, 64);
+    final buttonWidth = ResponsiveHelper.getWidth(context, 60);
+    final bottomMargin = ResponsiveHelper.spacing(context, 30);
+    final padding = ResponsiveHelper.spacing(context, 24);
+    final fontSizeBalance = ResponsiveHelper.fontSize(context, 32);
+    final fontSizeLabel = ResponsiveHelper.fontSize(context, 16);
+    final fontSizeButton = ResponsiveHelper.fontSize(context, 12);
+    final iconSize = ResponsiveHelper.iconSize(context, 20);
+    
     return Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.bottomCenter,
       children: [
         // Carte Verte
-                Container(
-          margin: const EdgeInsets.only(bottom: 30),
+        Container(
+          margin: EdgeInsets.only(bottom: bottomMargin),
           width: double.infinity,
-          height: 160,
+          height: cardHeight,
                   decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFF2ECC71), Color(0xFF27AE60)],
@@ -440,7 +620,7 @@ class _HomeContentState extends State<HomeContent> {
             borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                color: AppColors.primaryGreen.withOpacity(0.3),
+                color: AppColors.primaryGreen.withValues(alpha: 0.3),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
                       ),
@@ -457,22 +637,41 @@ class _HomeContentState extends State<HomeContent> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                    Text("Solde actuel", style: AppTextStyles.body.copyWith(color: Colors.white.withOpacity(0.9))),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                        const Text("=00.0", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, fontFamily: 'SpaceGrotesk')),
-                        Text("XOF", style: AppTextStyles.heading1.copyWith(color: Colors.white.withOpacity(0.9))),
-                        ],
+                padding: EdgeInsets.all(padding),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Solde actuel",
+                      style: AppTextStyles.body.copyWith(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: fontSizeLabel,
                       ),
-                    ],
-                  ),
+                    ),
+                    SizedBox(height: ResponsiveHelper.spacing(context, 8)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "=00.0",
+                          style: TextStyle(
+                            fontSize: fontSizeBalance,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            fontFamily: 'SpaceGrotesk',
+                          ),
+                        ),
+                        Text(
+                          "XOF",
+                          style: AppTextStyles.heading1.copyWith(
+                            color: Colors.white.withValues(alpha: 0.9),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
+              ),
             ],
           ),
         ),
@@ -480,36 +679,68 @@ class _HomeContentState extends State<HomeContent> {
         Positioned(
           bottom: 0,
           child: Container(
-            width: 240,
-            height: 64,
+            width: buttonWidth,
+            height: buttonHeight,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
-              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 15, offset: const Offset(0, 5))],
-                    ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 15,
+                  offset: Offset(0, ResponsiveHelper.spacing(context, 5)),
+                ),
+              ],
+            ),
             child: Row(
               children: [
                 Expanded(
                   child: InkWell(
                     onTap: () => _showDevPopup("Dépôt"),
-                    child: const Column(
+                    child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.arrow_downward, color: AppColors.primaryGreen, size: 20),
-                        Text("Depot", style: TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.bold, fontSize: 12)),
+                        Icon(
+                          Icons.arrow_downward,
+                          color: AppColors.primaryGreen,
+                          size: iconSize,
+                        ),
+                        Text(
+                          "Depot",
+                          style: TextStyle(
+                            color: AppColors.primaryGreen,
+                            fontWeight: FontWeight.bold,
+                            fontSize: fontSizeButton,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
-                Container(width: 1, height: 30, color: Colors.grey.withOpacity(0.2)),
+                Container(
+                  width: 1,
+                  height: buttonHeight * 0.47,
+                  color: Colors.grey.withValues(alpha: 0.2),
+                ),
                 Expanded(
                   child: InkWell(
                     onTap: () => _showDevPopup("Retraits"),
-                    child: const Column(
+                    child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.arrow_upward, color: AppColors.primaryRed, size: 20),
-                        Text("Retraits", style: TextStyle(color: AppColors.primaryRed, fontWeight: FontWeight.bold, fontSize: 12)),
+                        Icon(
+                          Icons.arrow_upward,
+                          color: AppColors.primaryRed,
+                          size: iconSize,
+                        ),
+                        Text(
+                          "Retraits",
+                          style: TextStyle(
+                            color: AppColors.primaryRed,
+                            fontWeight: FontWeight.bold,
+                            fontSize: fontSizeButton,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -522,11 +753,11 @@ class _HomeContentState extends State<HomeContent> {
     );
   }
 
-  Widget _buildQuickActions() {
+  Widget _buildQuickActions(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _actionBtn(Icons.account_balance_wallet_outlined, "Acheter", () {
+        _actionBtn(context, Icons.account_balance_wallet_outlined, "Acheter", () {
           if (_watchlistCoins.isNotEmpty) {
             final coin = _watchlistCoins[0];
             Navigator.push(
@@ -544,9 +775,9 @@ class _HomeContentState extends State<HomeContent> {
             _showDevPopup("Acheter", isError: true);
           }
         }),
-        _actionBtn(Icons.call_received, "Recevoir", () => _showDevPopup("Recevoir")),
-        _actionBtn(Icons.send_outlined, "Envoyer", () => _showDevPopup("Envoyer")),
-        _actionBtn(Icons.swap_horiz, "Vendre", () {
+        _actionBtn(context, Icons.call_received, "Recevoir", () => _showDevPopup("Recevoir")),
+        _actionBtn(context, Icons.send_outlined, "Envoyer", () => _showDevPopup("Envoyer")),
+        _actionBtn(context, Icons.swap_horiz, "Vendre", () {
           if (_watchlistCoins.isNotEmpty) {
             final coin = _watchlistCoins[0];
             Navigator.push(
@@ -568,46 +799,75 @@ class _HomeContentState extends State<HomeContent> {
     );
   }
 
-  Widget _actionBtn(IconData icon, String label, VoidCallback onTap) {
+  Widget _actionBtn(BuildContext context, IconData icon, String label, VoidCallback onTap) {
+    final btnSize = ResponsiveHelper.spacing(context, 56);
+    final iconSize = ResponsiveHelper.iconSize(context, 24);
+    final fontSize = ResponsiveHelper.fontSize(context, 12);
+    final spacing = ResponsiveHelper.spacing(context, 8);
+    
     return GestureDetector(
       onTap: onTap,
       child: Column(
         children: [
           Container(
-            width: 56, height: 56,
+            width: btnSize,
+            height: btnSize,
             decoration: BoxDecoration(
               color: AppColors.card,
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white10),
             ),
-            child: Icon(icon, color: Colors.grey, size: 24),
+            child: Icon(icon, color: Colors.grey, size: iconSize),
           ),
-          const SizedBox(height: 8),
-          Text(label, style: AppTextStyles.bodyFaded.copyWith(fontSize: 12)),
+          SizedBox(height: spacing),
+          Text(
+            label,
+            style: AppTextStyles.bodyFaded.copyWith(fontSize: fontSize),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildWatchlistHeader() {
+  Widget _buildWatchlistHeader(BuildContext context) {
     final isModifyMode = _watchlistCoins.length >= 3;
     final buttonText = isModifyMode ? "Modifier" : "Ajouter";
     final buttonIcon = isModifyMode ? Icons.edit : Icons.add;
+    final fontSizeHeading = ResponsiveHelper.fontSize(context, 20);
+    final fontSizeButton = ResponsiveHelper.fontSize(context, 12);
+    final iconSize = ResponsiveHelper.iconSize(context, 16);
+    final padding = ResponsiveHelper.spacing(context, 12);
+    final spacing = ResponsiveHelper.spacing(context, 4);
     
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text("Watchlist", style: AppTextStyles.heading2),
+        Text(
+          "Watchlist",
+          style: AppTextStyles.heading2.copyWith(fontSize: fontSizeHeading),
+        ),
         GestureDetector(
           onTap: () => _showWatchlistManager(),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(color: const Color(0xFF1E2D3B), borderRadius: BorderRadius.circular(20)),
+            padding: EdgeInsets.symmetric(
+              horizontal: padding,
+              vertical: padding * 0.5,
+            ),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E2D3B),
+              borderRadius: BorderRadius.circular(20),
+            ),
             child: Row(
               children: [
-                Icon(buttonIcon, color: AppColors.textFaded, size: 16),
-                const SizedBox(width: 4),
-                Text(buttonText, style: TextStyle(color: AppColors.textFaded, fontSize: 12)),
+                Icon(buttonIcon, color: AppColors.textFaded, size: iconSize),
+                SizedBox(width: spacing),
+                Text(
+                  buttonText,
+                  style: TextStyle(
+                    color: AppColors.textFaded,
+                    fontSize: fontSizeButton,
+                  ),
+                ),
               ],
             ),
           ),
@@ -639,7 +899,7 @@ class _HomeContentState extends State<HomeContent> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.textFaded.withOpacity(0.3),
+                    color: AppColors.textFaded.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -705,13 +965,16 @@ class _HomeContentState extends State<HomeContent> {
                                 if (_watchlistCoins.length > 2) // Permettre de retirer seulement si on a plus de 2
                                   IconButton(
                                     icon: Icon(Icons.close, color: AppColors.primaryRed),
-                                    onPressed: () {
+                                    onPressed: () async {
                                       setState(() {
                                         _watchlistCoins.remove(coin);
                                       });
+                                      await _saveWatchlist();
                                       _reloadWatchlistCoins();
                                       if (_watchlistCoins.length < 2) {
-                                        Navigator.pop(context);
+                                        if (context.mounted) {
+                                          Navigator.pop(context);
+                                        }
                                       }
                                     },
           ),
@@ -737,14 +1000,17 @@ class _HomeContentState extends State<HomeContent> {
                           return !_watchlistCoins.any((c) => c.id == coin.id);
                         }).map((coin) {
                           return GestureDetector(
-                            onTap: () {
+                            onTap: () async {
                               if (_watchlistCoins.length < 4) {
                                 setState(() {
                                   _watchlistCoins.add(coin);
                                 });
+                                await _saveWatchlist();
                                 _reloadWatchlistCoins();
                                 if (_watchlistCoins.length >= 4) {
-                                  Navigator.pop(context);
+                                  if (context.mounted) {
+                                    Navigator.pop(context);
+                                  }
                                 }
                               }
                             },
@@ -817,165 +1083,164 @@ class _HomeContentState extends State<HomeContent> {
     );
   }
 
-  Widget _buildWatchlist() {
-    if (_loading) return Center(child: CircularProgressIndicator(color: AppColors.primaryGreen));
-    if (_watchlistCoins.isEmpty) return const Center(child: Text("Erreur chargement", style: TextStyle(color: Colors.white)));
+  Widget _buildWatchlist(BuildContext context) {
+    if (_loading) {
+      return Center(
+        child: CircularProgressIndicator(color: AppColors.primaryGreen),
+      );
+    }
+    if (_watchlistCoins.isEmpty) {
+      return Center(
+        child: Text(
+          "Erreur chargement",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: ResponsiveHelper.fontSize(context, 16),
+          ),
+        ),
+      );
+    }
 
-    // Afficher les 2 premières monnaies côte à côte
+    // Créer une grille 2x2 symétrique
     final firstTwoCoins = _watchlistCoins.take(2).toList();
-    final remainingCoins = _watchlistCoins.skip(2).toList();
+    final lastTwoCoins = _watchlistCoins.skip(2).take(2).toList();
+    final cardPadding = ResponsiveHelper.spacing(context, 16);
+    final cardSpacing = ResponsiveHelper.spacing(context, 8);
+    final rowSpacing = ResponsiveHelper.spacing(context, 16);
+    final fontSizeName = ResponsiveHelper.fontSize(context, 14);
+    final fontSizePrice = ResponsiveHelper.fontSize(context, 16);
+    final fontSizePercent = ResponsiveHelper.fontSize(context, 12);
+    final logoSize = ResponsiveHelper.spacing(context, 24);
+
+    // Widget réutilisable pour une carte de monnaie
+    Widget buildCoinCard(Coin coin) {
+      return GestureDetector(
+        onTap: () {
+          // Rediriger vers la page d'achat
+          final priceInXOF = coin.currentPrice * 600;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => BuySellScreen(
+                isBuying: true,
+                coinName: coin.name,
+                coinSymbol: coin.symbol,
+                coinPrice: priceInXOF,
+              ),
+            ),
+          );
+        },
+        child: Container(
+          padding: EdgeInsets.all(cardPadding),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white10),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Logo
+              Container(
+                padding: EdgeInsets.all(ResponsiveHelper.spacing(context, 4)),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Image.network(
+                  coin.image,
+                  width: logoSize,
+                  height: logoSize,
+                  errorBuilder: (_, __, ___) => Icon(
+                    Icons.currency_bitcoin,
+                    color: Colors.orange,
+                    size: logoSize,
+                  ),
+                ),
+              ),
+              SizedBox(height: ResponsiveHelper.spacing(context, 12)),
+              Text(
+                coin.name,
+                style: AppTextStyles.heading2.copyWith(fontSize: fontSizeName),
+              ),
+              Text(
+                coin.symbol.toUpperCase(),
+                style: AppTextStyles.bodyFaded.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: ResponsiveHelper.fontSize(context, 12),
+                ),
+              ),
+              SizedBox(height: ResponsiveHelper.spacing(context, 20)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      "\$ ${coin.currentPrice.toStringAsFixed(2)}",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: fontSizePrice,
+                      ),
+                    ),
+                    SizedBox(height: ResponsiveHelper.spacing(context, 4)),
+                    // Pourcentage coloré
+                    Text(
+                      "${coin.priceChangePct24h >= 0 ? '+' : ''}${coin.priceChangePct24h.toStringAsFixed(2)}%",
+                      style: TextStyle(
+                        color: coin.priceChangePct24h >= 0
+                            ? AppColors.primaryGreen
+                            : AppColors.primaryRed,
+                        fontWeight: FontWeight.bold,
+                        fontSize: fontSizePercent,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Column(
       children: [
-        // Les 2 premières monnaies côte à côte
+        // Première ligne : 2 premières monnaies
         Row(
-          children: firstTwoCoins.map((coin) {
+          children: firstTwoCoins.asMap().entries.map((entry) {
+            final index = entry.key;
+            final coin = entry.value;
             return Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  // Rediriger vers la page d'achat
-                  final priceInXOF = coin.currentPrice * 600;
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => BuySellScreen(
-                        isBuying: true,
-                        coinName: coin.name,
-                        coinSymbol: coin.symbol,
-                        coinPrice: priceInXOF,
-                      ),
-                    ),
-                  );
-                },
-                child: Container(
-                  margin: EdgeInsets.only(
-                    right: coin != firstTwoCoins.last ? 16 : 0,
-                  ),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-        color: AppColors.card,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white10),
-      ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Logo
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white12),
-                        ),
-                        child: Image.network(coin.image, width: 24, height: 24, errorBuilder: (_, __, ___) => const Icon(Icons.currency_bitcoin, color: Colors.orange, size: 24)),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(coin.name, style: AppTextStyles.heading2.copyWith(fontSize: 14)),
-                      Text(coin.symbol.toUpperCase(), style: AppTextStyles.bodyFaded.copyWith(fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 20),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text("\$ ${coin.currentPrice.toStringAsFixed(2)}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                            const SizedBox(height: 4),
-                            // Pourcentage coloré
-                            Text(
-                              "${coin.priceChangePct24h >= 0 ? '+' : ''}${coin.priceChangePct24h.toStringAsFixed(2)}%",
-                              style: TextStyle(
-                                color: coin.priceChangePct24h >= 0 ? AppColors.primaryGreen : AppColors.primaryRed,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-          ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+              child: Padding(
+                padding: EdgeInsets.only(
+                  right: index == 0 ? cardSpacing : 0,
+                  left: index == 1 ? cardSpacing : 0,
                 ),
+                child: buildCoinCard(coin),
               ),
             );
           }).toList(),
         ),
         
-        // Les monnaies supplémentaires (3ème et 4ème) en dessous, scrollable
-        if (remainingCoins.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 120, // Hauteur fixe pour la zone scrollable
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: remainingCoins.map((coin) {
-                return GestureDetector(
-                  onTap: () {
-                    // Rediriger vers la page d'achat
-                    final priceInXOF = coin.currentPrice * 600;
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => BuySellScreen(
-                          isBuying: true,
-                          coinName: coin.name,
-                          coinSymbol: coin.symbol,
-                          coinPrice: priceInXOF,
-          ),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    width: MediaQuery.of(context).size.width / 2 - 36, // Largeur pour 2 colonnes avec espacement
-                    margin: EdgeInsets.only(
-                      right: coin != remainingCoins.last ? 16 : 0,
-                    ),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.card,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white10),
-      ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Logo
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white12),
-                          ),
-                          child: Image.network(coin.image, width: 24, height: 24, errorBuilder: (_, __, ___) => const Icon(Icons.currency_bitcoin, color: Colors.orange, size: 24)),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(coin.name, style: AppTextStyles.heading2.copyWith(fontSize: 14)),
-                        Text(coin.symbol.toUpperCase(), style: AppTextStyles.bodyFaded.copyWith(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 20),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text("\$ ${coin.currentPrice.toStringAsFixed(2)}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                              const SizedBox(height: 4),
-                              // Pourcentage coloré
-                              Text(
-                                "${coin.priceChangePct24h >= 0 ? '+' : ''}${coin.priceChangePct24h.toStringAsFixed(2)}%",
-                                style: TextStyle(
-                                  color: coin.priceChangePct24h >= 0 ? AppColors.primaryGreen : AppColors.primaryRed,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+        // Deuxième ligne : 2 dernières monnaies (si elles existent)
+        if (lastTwoCoins.isNotEmpty) ...[
+          SizedBox(height: rowSpacing),
+          Row(
+            children: lastTwoCoins.asMap().entries.map((entry) {
+              final index = entry.key;
+              final coin = entry.value;
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    right: index == 0 ? cardSpacing : 0,
+                    left: index == 1 ? cardSpacing : 0,
                   ),
-                );
-              }).toList(),
-            ),
+                  child: buildCoinCard(coin),
+                ),
+              );
+            }).toList(),
           ),
         ],
       ],

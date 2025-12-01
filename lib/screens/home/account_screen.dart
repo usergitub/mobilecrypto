@@ -14,11 +14,11 @@ class _AccountScreenState extends State<AccountScreen> {
   String _userName = "Utilisateur";
   String _userPhone = "";
   String _userEmail = "";
-  String _country = "Côte d'Ivoire";
-  String _kycLevel = "Non vérifié";
+  final String _country = "Côte d'Ivoire";
+  final String _kycLevel = "Non vérifié";
   bool _twoFactorEnabled = false;
   
-  List<Map<String, String>> _paymentMethods = [
+  final List<Map<String, String>> _paymentMethods = [
     {'type': 'MTN MoMo', 'number': '+225 07 08 09 10 11', 'verified': 'true'},
     {'type': 'Orange Money', 'number': '+225 05 12 34 56 78', 'verified': 'true'},
   ];
@@ -86,8 +86,8 @@ class _AccountScreenState extends State<AccountScreen> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: _kycLevel == "Non vérifié" 
-                          ? AppColors.primaryRed.withOpacity(0.1)
-                          : AppColors.primaryGreen.withOpacity(0.1),
+                          ? AppColors.primaryRed.withValues(alpha: 0.1)
+                          : AppColors.primaryGreen.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: _kycLevel == "Non vérifié" 
@@ -274,7 +274,7 @@ class _AccountScreenState extends State<AccountScreen> {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: AppColors.primaryGreen.withOpacity(0.2),
+              color: AppColors.primaryGreen.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: Icon(Icons.account_balance_wallet, color: AppColors.primaryGreen),
@@ -300,7 +300,7 @@ class _AccountScreenState extends State<AccountScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.primaryGreen.withOpacity(0.2),
+                color: AppColors.primaryGreen.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Text(

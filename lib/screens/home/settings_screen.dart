@@ -16,7 +16,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _selectedCurrency = 'XOF';
   
   // États pour la sécurité
-  bool _pinEnabled = true;
   bool _biometricEnabled = false;
   bool _securityNotificationsEnabled = true;
   
@@ -38,7 +37,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _selectedLanguage = prefs.getString('language') ?? 'FR';
       _selectedTheme = prefs.getString('theme') ?? 'Sombre';
       _selectedCurrency = prefs.getString('currency') ?? 'XOF';
-      _pinEnabled = prefs.getBool('pinEnabled') ?? true;
       _biometricEnabled = prefs.getBool('biometricEnabled') ?? false;
       _securityNotificationsEnabled = prefs.getBool('securityNotifications') ?? true;
       _priceAlertEnabled = prefs.getBool('priceAlert') ?? true;
@@ -235,22 +233,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // ✅ EXÉCUTION DE LA DÉCONNEXION
-  void _performLogout(BuildContext context) async {
-    // ✅ SUPPRIMER LES DONNÉES DE SESSION
-      final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isLoggedIn', false); // Marquer comme déconnecté
-    // On garde userPhone et userName pour faciliter la reconnexion
-    // mais on met isLoggedIn à false pour forcer la reconnexion complète
-
-      // ✅ REDIRECTION VERS L'ÉCRAN DE CONNEXION
-      if (context.mounted) {
-      Navigator.of(context).pushNamedAndRemoveUntil(
-        '/login',
-          (route) => false,
-        );
-    }
-  }
 
   Widget _buildSettingItem({
     required String title,

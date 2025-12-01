@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import '/utils/app_theme.dart';
+import '/utils/responsive_helper.dart';
 import 'transaction_failed_screen.dart';
 
 /// Écran Achat/Vente d'une crypto.
@@ -194,7 +195,7 @@ class _BuySellScreenState extends State<BuySellScreen> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: _getMethodColor(method).withOpacity(0.2),
+                      color: _getMethodColor(method).withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -296,18 +297,25 @@ class _BuySellScreenState extends State<BuySellScreen> {
       ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-              // --- CARTE "VOUS PAYEZ" ---
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(20),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: ResponsiveHelper.padding(context, all: 20),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
                 ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // --- CARTE "VOUS PAYEZ" ---
+                    Container(
+                      padding: ResponsiveHelper.padding(context, all: 20),
+                      decoration: BoxDecoration(
+                        color: AppColors.card,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -397,7 +405,7 @@ class _BuySellScreenState extends State<BuySellScreen> {
               decoration: InputDecoration(
                         hintText: '00',
                         hintStyle: TextStyle(
-                          color: AppColors.text.withOpacity(0.5),
+                          color: AppColors.text.withValues(alpha: 0.5),
                           fontSize: 36,
                         ),
                         border: InputBorder.none,
@@ -414,37 +422,37 @@ class _BuySellScreenState extends State<BuySellScreen> {
                 ),
               ),
 
-              const SizedBox(height: 20),
+                    SizedBox(height: ResponsiveHelper.spacing(context, 20)),
 
-              // --- BOUTON D'ÉCHANGE ---
-              Center(
-                child: GestureDetector(
-                  onTap: _swapCurrencies,
-                  child: Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: AppColors.card,
-                      shape: BoxShape.circle,
+                    // --- BOUTON D'ÉCHANGE ---
+                    Center(
+                      child: GestureDetector(
+                        onTap: _swapCurrencies,
+                        child: Container(
+                          width: ResponsiveHelper.spacing(context, 50),
+                          height: ResponsiveHelper.spacing(context, 50),
+                          decoration: BoxDecoration(
+                            color: AppColors.card,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.swap_vert,
+                            color: const Color(0xFF9B59B6), // Violet
+                            size: ResponsiveHelper.iconSize(context, 28),
+                          ),
+                        ),
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.swap_vert,
-                      color: Color(0xFF9B59B6), // Violet
-                      size: 28,
-                    ),
-                  ),
-                ),
-            ),
 
-            const SizedBox(height: 20),
+                    SizedBox(height: ResponsiveHelper.spacing(context, 20)),
 
-              // --- CARTE "VOUS RECEVEZ" ---
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(20),
-                ),
+                    // --- CARTE "VOUS RECEVEZ" ---
+                    Container(
+                      padding: ResponsiveHelper.padding(context, all: 20),
+                      decoration: BoxDecoration(
+                        color: AppColors.card,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -532,7 +540,7 @@ class _BuySellScreenState extends State<BuySellScreen> {
                       decoration: InputDecoration(
                         hintText: '00',
                         hintStyle: TextStyle(
-                          color: AppColors.text.withOpacity(0.5),
+                          color: AppColors.text.withValues(alpha: 0.5),
                           fontSize: 36,
                         ),
                         border: InputBorder.none,
@@ -551,96 +559,104 @@ class _BuySellScreenState extends State<BuySellScreen> {
                 ),
               ),
 
-              const SizedBox(height: 24),
+                    SizedBox(height: ResponsiveHelper.spacing(context, 24)),
 
-              // --- TAUX DE CHANGE ---
-              Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: Colors.orange,
-                      shape: BoxShape.circle,
+                    // --- TAUX DE CHANGE ---
+                    Row(
+                      children: [
+                        Container(
+                          width: ResponsiveHelper.spacing(context, 8),
+                          height: ResponsiveHelper.spacing(context, 8),
+                          decoration: const BoxDecoration(
+                            color: Colors.orange,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        SizedBox(width: ResponsiveHelper.spacing(context, 8)),
+                        Flexible(
+                          child: Text(
+                            widget.isBuying
+                                ? '1 ${widget.coinSymbol.toUpperCase()} = ${finalUnitPrice.toStringAsFixed(0)} XOF'
+                                : '1 ${widget.coinSymbol.toUpperCase()} = ${finalUnitPrice.toStringAsFixed(0)} XOF',
+                            style: AppTextStyles.body.copyWith(
+                              fontSize: ResponsiveHelper.fontSize(context, 14),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: 8),
-            Text(
-                    widget.isBuying
-                        ? '1 ${widget.coinSymbol.toUpperCase()} = ${finalUnitPrice.toStringAsFixed(0)} XOF'
-                        : '1 ${widget.coinSymbol.toUpperCase()} = ${finalUnitPrice.toStringAsFixed(0)} XOF',
-                    style: AppTextStyles.body.copyWith(
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-            ),
 
-              const SizedBox(height: 24),
+                    SizedBox(height: ResponsiveHelper.spacing(context, 24)),
 
-              // --- DÉTAILS DE TRANSACTION ---
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                    // --- DÉTAILS DE TRANSACTION ---
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        vertical: ResponsiveHelper.spacing(context, 16),
+                      ),
                 child: Column(
                   children: [
-                    _buildTransactionDetailRow(
-                      'Frais de transaction',
-                      'Gratuit',
-                      isOrange: true,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildTransactionDetailRow(
-                      'Temps de transaction',
-                      '1 minutes',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildTransactionDetailRow(
-                      'Transaction totale',
-                      '${calculatedTotal.toStringAsFixed(0)} ${_isMobileMoneyPay ? "XOF" : widget.coinSymbol.toUpperCase()}',
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // --- LIEN GESTION PAIEMENTS ---
-              RichText(
-                text: TextSpan(
-                  style: AppTextStyles.body.copyWith(
-                    fontSize: 14,
-                  ),
-                  children: [
-                    TextSpan(
-                      text: 'Cliquez ici',
-                      style: AppTextStyles.link.copyWith(
-                        color: Colors.blue,
-                        fontSize: 14,
+                      _buildTransactionDetailRow(
+                        context,
+                        'Frais de transaction',
+                        'Gratuit',
+                        isOrange: true,
                       ),
-                      recognizer: TapGestureRecognizer()
-                        ..onTap = () {
-                          // TODO: Ouvrir page de gestion des paiements
-                        },
+                      SizedBox(height: ResponsiveHelper.spacing(context, 12)),
+                      _buildTransactionDetailRow(
+                        context,
+                        'Temps de transaction',
+                        '1 minutes',
+                      ),
+                      SizedBox(height: ResponsiveHelper.spacing(context, 12)),
+                      _buildTransactionDetailRow(
+                        context,
+                        'Transaction totale',
+                        '${calculatedTotal.toStringAsFixed(0)} ${_isMobileMoneyPay ? "XOF" : widget.coinSymbol.toUpperCase()}',
+                      ),
+                    ],
+                  ),
                     ),
-                    const TextSpan(
-                      text:
-                          ' pour gérer vos paiements. Vous pourrez facilement mettre à jour le numéro et l\'adresse de votre portefeuille.',
+
+                    SizedBox(height: ResponsiveHelper.spacing(context, 24)),
+
+                    // --- LIEN GESTION PAIEMENTS ---
+                    RichText(
+                      text: TextSpan(
+                        style: AppTextStyles.body.copyWith(
+                          fontSize: ResponsiveHelper.fontSize(context, 14),
+                        ),
+                        children: [
+                          TextSpan(
+                            text: 'Cliquez ici',
+                            style: AppTextStyles.link.copyWith(
+                              color: Colors.blue,
+                              fontSize: ResponsiveHelper.fontSize(context, 14),
+                            ),
+                            recognizer: TapGestureRecognizer()
+                              ..onTap = () {
+                                // TODO: Ouvrir page de gestion des paiements
+                              },
+                          ),
+                          TextSpan(
+                            text:
+                                ' pour gérer vos paiements. Vous pourrez facilement mettre à jour le numéro et l\'adresse de votre portefeuille.',
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
-              ),
 
-              const SizedBox(height: 40),
+                    SizedBox(height: ResponsiveHelper.spacing(context, 40)),
 
-              // --- BOUTON SWIPE TO CONTINUE ---
-              if (calculatedTotal > 0)
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    _maxSwipeDistance = constraints.maxWidth - 80;
-                    return Container(
-                      height: 60,
+                    // --- BOUTON SWIPE TO CONTINUE ---
+                    if (calculatedTotal > 0)
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final buttonHeight = ResponsiveHelper.buttonHeight(context);
+                          _maxSwipeDistance = constraints.maxWidth - (buttonHeight * 1.33);
+                          return Container(
+                            height: buttonHeight,
                       decoration: BoxDecoration(
-                        color: AppColors.card.withOpacity(0.3),
+                        color: AppColors.card.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Stack(
@@ -657,14 +673,14 @@ class _BuySellScreenState extends State<BuySellScreen> {
                                     'Glissez pour continuer',
                                     style: AppTextStyles.body.copyWith(
                                       color: AppColors.textFaded,
-                                      fontSize: 14,
+                                      fontSize: ResponsiveHelper.fontSize(context, 14),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  SizedBox(width: ResponsiveHelper.spacing(context, 8)),
                                   Icon(
                                     Icons.arrow_forward,
                                     color: AppColors.textFaded,
-                                    size: 18,
+                                    size: ResponsiveHelper.iconSize(context, 18),
                                   ),
                                 ],
                               ),
@@ -677,7 +693,7 @@ class _BuySellScreenState extends State<BuySellScreen> {
                                 'Continuer',
                                 style: AppTextStyles.heading2.copyWith(
                                   color: AppColors.text,
-                                  fontSize: 16,
+                                  fontSize: ResponsiveHelper.fontSize(context, 16),
                                 ),
                               ),
                             ),
@@ -701,8 +717,8 @@ class _BuySellScreenState extends State<BuySellScreen> {
                                     MaterialPageRoute(
                                       builder: (_) => TransactionFailedScreen(
                                         errorMessage: 'La transaction n\'a pas pu être complétée car l\'API de paiement n\'est pas encore intégrée. Veuillez réessayer plus tard ou contacter le support client pour plus d\'informations.',
-                ),
-              ),
+                                      ),
+                                    ),
                                   );
                                   // Réinitialiser après la navigation
                                   Future.delayed(const Duration(milliseconds: 100), () {
@@ -720,72 +736,84 @@ class _BuySellScreenState extends State<BuySellScreen> {
                                 }
                               },
                               child: Container(
-                                width: 80,
-                                height: 60,
+                                width: buttonHeight * 1.33,
+                                height: buttonHeight,
                                 decoration: BoxDecoration(
                                   color: AppColors.primaryGreen,
                                   borderRadius: BorderRadius.circular(16),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: AppColors.primaryGreen.withOpacity(0.3),
+                                      color: AppColors.primaryGreen.withValues(alpha: 0.3),
                                       blurRadius: 8,
                                       offset: const Offset(0, 4),
                                     ),
                                   ],
                                 ),
-                                child: const Icon(
+                                child: Icon(
                                   Icons.arrow_forward,
                                   color: Colors.white,
-                                  size: 24,
+                                  size: ResponsiveHelper.iconSize(context, 24),
                                 ),
                               ),
-              ),
-            ),
-          ],
+                            ),
+                          ),
+                        ],
                       ),
                     );
                   },
                 )
-              else
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 18),
-                  decoration: BoxDecoration(
-                    color: AppColors.card.withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Entrez un montant pour continuer',
-                      style: AppTextStyles.body.copyWith(
-                        color: AppColors.textFaded,
+                    else
+                      Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.symmetric(
+                          vertical: ResponsiveHelper.spacing(context, 18),
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.card.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Entrez un montant pour continuer',
+                            style: AppTextStyles.body.copyWith(
+                              color: AppColors.textFaded,
+                              fontSize: ResponsiveHelper.fontSize(context, 16),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ),
 
-              const SizedBox(height: 20),
-            ],
-          ),
+                    SizedBox(height: ResponsiveHelper.spacing(context, 20)),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildTransactionDetailRow(String label, String value, {bool isOrange = false}) {
+  Widget _buildTransactionDetailRow(
+    BuildContext context,
+    String label,
+    String value, {
+    bool isOrange = false,
+  }) {
+    final fontSize = ResponsiveHelper.fontSize(context, 14);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: AppTextStyles.body.copyWith(
-            fontSize: 14,
+        Flexible(
+          child: Text(
+            label,
+            style: AppTextStyles.body.copyWith(fontSize: fontSize),
           ),
         ),
         Text(
           value,
           style: AppTextStyles.body.copyWith(
-            fontSize: 14,
+            fontSize: fontSize,
             color: isOrange ? Colors.orange : AppColors.text,
           ),
         ),

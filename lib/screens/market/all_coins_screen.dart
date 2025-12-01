@@ -14,7 +14,7 @@ class _AllCoinsScreenState extends State<AllCoinsScreen> {
   int _page = 1;
   final int _perPage = 30;
   bool _loading = false;
-  List<Coin> _coins = [];
+  final List<Coin> _coins = [];
 
   @override
   void initState() {

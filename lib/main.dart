@@ -15,14 +15,17 @@ Future<void> main() async {
 
   // ✅ CHARGER LA SESSION LOCALE
   final prefs = await SharedPreferences.getInstance();
+  final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
   final savedPhone = prefs.getString("userPhone");
 
   // ✅ DÉTERMINATION DE LA PAGE DE DÉMARRAGE
   late Widget initialPage;
 
-  if (savedPhone == null) {
+  // Si l'utilisateur n'est pas connecté, rediriger vers l'écran de connexion
+  if (!isLoggedIn || savedPhone == null) {
     initialPage = const SignUpScreen();
   } else {
+    // Utilisateur connecté, vérifier le PIN
     initialPage = SecretCodeScreen(
       phoneNumber: savedPhone,
       isCreating: false,

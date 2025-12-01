@@ -30,4 +30,16 @@ class Coin {
           (j['price_change_percentage_24h'] as num? ?? 0).toDouble(),
     );
   }
+
+  // Convertir en Map pour le cache offline
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'symbol': symbol,
+      'name': name,
+      'image': image,
+      'current_price': currentPrice,
+      'price_change_percentage_24h': priceChangePct24h,
+    };
+  }
 }

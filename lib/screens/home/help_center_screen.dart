@@ -209,15 +209,6 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
   Widget _buildFAQItem(String question, String answer) {
     return ExpansionTile(
       title: Text(question, style: AppTextStyles.heading2.copyWith(fontSize: 16)),
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            answer,
-            style: AppTextStyles.body.copyWith(color: AppColors.textFaded),
-          ),
-        ),
-      ],
       iconColor: AppColors.primaryGreen,
       collapsedIconColor: AppColors.textFaded,
       backgroundColor: AppColors.card,
@@ -228,6 +219,15 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
       collapsedShape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            answer,
+            style: AppTextStyles.body.copyWith(color: AppColors.textFaded),
+          ),
+        ),
+      ],
     );
   }
 

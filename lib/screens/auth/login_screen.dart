@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '/utils/app_theme.dart';
+import '/utils/responsive_helper.dart';
 import '/widgets/numeric_keypad.dart';
 import 'otp_screen.dart';
 
@@ -114,12 +115,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   // widget affichant le numéro avec des placeholders
-  Widget _buildPhoneNumberDisplay() {
+  Widget _buildPhoneNumberDisplay(BuildContext context) {
     List<Widget> displayChars = [];
     String placeholder = '0000000000'; // 10 zéros
+    final fontSize = ResponsiveHelper.fontSize(context, 32);
+    final spacing = ResponsiveHelper.spacing(context, 8);
 
     for (int i = 0; i < 10; i++) {
-      if (i > 0 && i % 2 == 0) displayChars.add(const SizedBox(width: 8));
+      if (i > 0 && i % 2 == 0) displayChars.add(SizedBox(width: spacing));
 
       final bool hasChar = i < _phoneNumber.length;
       final String char = hasChar ? _phoneNumber[i] : placeholder[i];
@@ -130,8 +133,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
           style: TextStyle(
             color: hasChar
                 ? AppColors.text
-                : AppColors.textFaded.withOpacity(0.4),
-            fontSize: 32,
+                : AppColors.textFaded.withValues(alpha: 0.4),
+            fontSize: fontSize,
             letterSpacing: 2,
             fontWeight: hasChar ? FontWeight.w600 : FontWeight.w300,
           ),
@@ -141,6 +144,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: displayChars,
     );
   }
@@ -148,6 +152,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     final isComplete = _phoneNumber.length == 10;
+    final horizontalPad = ResponsiveHelper.horizontalPadding(context);
+    final logoSize = ResponsiveHelper.logoSize(context);
+    final buttonH = ResponsiveHelper.buttonHeight(context);
+    final fontSizeHeading = ResponsiveHelper.fontSize(context, 28);
+    final fontSizeBody = ResponsiveHelper.fontSize(context, 16);
+    final fontSizePhone = ResponsiveHelper.fontSize(context, 32);
+    final spacing1 = ResponsiveHelper.spacing(context, 32);
+    final spacing2 = ResponsiveHelper.spacing(context, 16);
+    final spacing3 = ResponsiveHelper.spacing(context, 12);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -157,140 +170,157 @@ class _SignUpScreenState extends State<SignUpScreen> {
         leading: Icon(Icons.arrow_back, color: AppColors.text),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Column(
-              children: [
-                const SizedBox(height: 32),
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: AppColors.card.withOpacity(0.5),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.chat_bubble_outline,
-                      color: AppColors.primaryGreen,
-                    ),
-                  ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
                 ),
-                const SizedBox(height: 32),
-                const Text(
-                  "Pour commencer, entrez votre numéro mobile",
-                  style: AppTextStyles.heading1,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  "Nous vous enverrons un code de vérification",
-                  style: AppTextStyles.body,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      "+225",
-                      style: TextStyle(
-                        color: AppColors.text,
-                        fontSize: 32,
-                        letterSpacing: 2,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: horizontalPad),
+                  child: Column(
+                    children: [
+                      SizedBox(height: spacing1),
+                      Container(
+                        width: logoSize,
+                        height: logoSize,
+                        decoration: BoxDecoration(
+                          color: AppColors.card.withValues(alpha: 0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Icon(
+                            Icons.chat_bubble_outline,
+                            color: AppColors.primaryGreen,
+                            size: ResponsiveHelper.iconSize(context, 30),
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    _buildPhoneNumberDisplay(),
-                  ],
-                ),
-                const SizedBox(height: 32),
-
-                // Bouton Continuer
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6.0),
-                  child: ElevatedButton(
-                    onPressed: isComplete && !_loading ? _handleContinue : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryGreen,
-                      disabledBackgroundColor: AppColors.card,
-                      minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      SizedBox(height: spacing1),
+                      Text(
+                        "Pour commencer, entrez votre numéro mobile",
+                        style: AppTextStyles.heading1.copyWith(
+                          fontSize: fontSizeHeading,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                    ),
-                    child: _loading
-                        ? const SizedBox(
-                            height: 24,
-                            width: 24,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text(
-                            "Continuer",
+                      SizedBox(height: spacing2),
+                      Text(
+                        "Nous vous enverrons un code de vérification",
+                        style: AppTextStyles.body.copyWith(
+                          fontSize: fontSizeBody,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: spacing1),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "+225",
                             style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                              color: AppColors.text,
+                              fontSize: fontSizePhone,
+                              letterSpacing: 2,
                             ),
                           ),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-                Center(
-                  child: RichText(
-                    text: TextSpan(
-                      style: AppTextStyles.body.copyWith(fontSize: 14),
-                      children: [
-                        const TextSpan(
-                          text: "En continuant, vous acceptez nos ",
+                          SizedBox(width: spacing2),
+                          Flexible(child: _buildPhoneNumberDisplay(context)),
+                        ],
+                      ),
+                      SizedBox(height: spacing1),
+                      // Bouton Continuer
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: spacing3),
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: buttonH,
+                          child: ElevatedButton(
+                            onPressed: isComplete && !_loading ? _handleContinue : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryGreen,
+                              disabledBackgroundColor: AppColors.card,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: _loading
+                                ? const SizedBox(
+                                    height: 24,
+                                    width: 24,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Text(
+                                    "Continuer",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: ResponsiveHelper.fontSize(context, 18),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                          ),
                         ),
-                        TextSpan(
-                          text: "conditions d'utilisation",
-                          style: AppTextStyles.link,
-                          recognizer: TapGestureRecognizer()
-                            ..onTap = () {
-                              // TODO: ouvre la page CGU
-                            },
+                      ),
+                      SizedBox(height: spacing2),
+                      Center(
+                        child: RichText(
+                          textAlign: TextAlign.center,
+                          text: TextSpan(
+                            style: AppTextStyles.body.copyWith(
+                              fontSize: ResponsiveHelper.fontSize(context, 14),
+                            ),
+                            children: [
+                              const TextSpan(
+                                text: "En continuant, vous acceptez nos ",
+                              ),
+                              TextSpan(
+                                text: "conditions d'utilisation",
+                                style: AppTextStyles.link,
+                                recognizer: TapGestureRecognizer()
+                                  ..onTap = () {
+                                    // TODO: ouvre la page CGU
+                                  },
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
-                    ),
+                      ),
+                      SizedBox(height: spacing1),
+                      // Pavé numérique
+                      Container(
+                        padding: EdgeInsets.all(spacing2),
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: KeypadWidget(
+                          onKeyPressed: _onKeyPressed,
+                          onBackspacePressed: _onBackspacePressed,
+                        ),
+                      ),
+                      SizedBox(height: spacing3),
+                      Padding(
+                        padding: EdgeInsets.symmetric(vertical: spacing3),
+                        child: Text(
+                          'Numéro saisi: $_fullPhone',
+                          style: AppTextStyles.body.copyWith(
+                            color: AppColors.textFaded,
+                            fontSize: ResponsiveHelper.fontSize(context, 14),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: spacing2),
+                    ],
                   ),
                 ),
-
-                const SizedBox(height: 32),
-
-                // Pavé numérique
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: KeypadWidget(
-                    onKeyPressed: _onKeyPressed,
-                    onBackspacePressed: _onBackspacePressed,
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Text(
-                    'Numéro saisi: $_fullPhone',
-                    style: AppTextStyles.body.copyWith(
-                      color: AppColors.textFaded,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );

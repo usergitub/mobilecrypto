@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '/utils/app_theme.dart';
+import '/utils/responsive_helper.dart';
 import '/widgets/numeric_keypad.dart';
 import '/screens/home/home_screen.dart';
 
@@ -48,9 +49,9 @@ class _SecretCodeScreenState extends State<SecretCodeScreen> {
       await _saveLoginState();
 
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
     } catch (e) {
       debugPrint('❌ Erreur sauvegarde PIN: $e');
       _showError("Erreur lors de l'enregistrement du code secret");
@@ -128,7 +129,7 @@ class _SecretCodeScreenState extends State<SecretCodeScreen> {
               setState(() => _code = '');
             },
             child: const Text("Réessayer"),
-          )
+          ),
         ],
       ),
     );
@@ -137,6 +138,17 @@ class _SecretCodeScreenState extends State<SecretCodeScreen> {
   /* ✅ UI */
   @override
   Widget build(BuildContext context) {
+    final horizontalPad = ResponsiveHelper.horizontalPadding(context);
+    final logoSize = ResponsiveHelper.logoSize(context);
+    final spacing1 = ResponsiveHelper.spacing(context, 32);
+    final spacing2 = ResponsiveHelper.spacing(context, 10);
+    final spacing3 = ResponsiveHelper.spacing(context, 40);
+    final spacing4 = ResponsiveHelper.spacing(context, 20);
+    final fontSizeHeading = ResponsiveHelper.fontSize(context, 28);
+    final fontSizeBody = ResponsiveHelper.fontSize(context, 16);
+    final pinDotSize = ResponsiveHelper.spacing(context, 22);
+    final pinDotMargin = ResponsiveHelper.spacing(context, 12);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -145,78 +157,92 @@ class _SecretCodeScreenState extends State<SecretCodeScreen> {
         leading: const Icon(Icons.arrow_back, color: Colors.white),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: AppColors.card.withOpacity(0.4),
-                  shape: BoxShape.circle,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: horizontalPad),
+                  child: Column(
+                    children: [
+                      SizedBox(height: spacing1),
+                      Container(
+                        width: logoSize,
+                        height: logoSize,
+                        decoration: BoxDecoration(
+                          color: AppColors.card.withValues(alpha: 0.4),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.lock_outline,
+                          color: AppColors.primaryGreen,
+                          size: ResponsiveHelper.iconSize(context, 30),
+                        ),
+                      ),
+                      SizedBox(height: spacing1),
+                      Text(
+                        widget.isCreating
+                            ? "Définis ton code secret à 4 chiffres"
+                            : "Entrer votre code secret",
+                        style: AppTextStyles.heading1.copyWith(
+                          fontSize: fontSizeHeading,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: spacing2),
+                      Text(
+                        widget.isCreating
+                            ? "Ce code sécurise ton compte MobileCrypto"
+                            : "Déverrouille ton compte ${widget.phoneNumber}",
+                        style: AppTextStyles.body.copyWith(
+                          fontSize: fontSizeBody,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: spacing3),
+                      _loading
+                          ? const CircularProgressIndicator(
+                              color: AppColors.primaryGreen,
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(4, (i) {
+                                return Container(
+                                  width: pinDotSize,
+                                  height: pinDotSize,
+                                  margin: EdgeInsets.symmetric(
+                                    horizontal: pinDotMargin,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: i < _code.length
+                                        ? AppColors.primaryGreen
+                                        : AppColors.card,
+                                    shape: BoxShape.circle,
+                                  ),
+                                );
+                              }),
+                            ),
+                      SizedBox(height: spacing3),
+                      Container(
+                        padding: EdgeInsets.all(spacing4),
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: KeypadWidget(
+                          onKeyPressed: _onKeyPressed,
+                          onBackspacePressed: _onBackspacePressed,
+                        ),
+                      ),
+                      SizedBox(height: spacing4),
+                    ],
+                  ),
                 ),
-                child: const Icon(Icons.lock_outline,
-                    color: AppColors.primaryGreen),
               ),
-              const SizedBox(height: 32),
-
-              Text(
-                widget.isCreating
-                    ? "Définis ton code secret à 4 chiffres"
-                    : "Entrer votre code secret",
-                style: AppTextStyles.heading1,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 10),
-              Text(
-                widget.isCreating
-                    ? "Ce code sécurise ton compte MobileCrypto"
-                    : "Déverrouille ton compte ${widget.phoneNumber}",
-                style: AppTextStyles.body,
-                textAlign: TextAlign.center,
-              ),
-
-              const SizedBox(height: 40),
-
-              _loading
-                  ? const CircularProgressIndicator(
-                      color: AppColors.primaryGreen,
-                    )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(4, (i) {
-                        return Container(
-                          width: 22,
-                          height: 22,
-                          margin: const EdgeInsets.symmetric(horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: i < _code.length
-                                ? AppColors.primaryGreen
-                                : AppColors.card,
-                            shape: BoxShape.circle,
-                          ),
-                        );
-                      }),
-                    ),
-
-              const Spacer(),
-
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: KeypadWidget(
-                  onKeyPressed: _onKeyPressed,
-                  onBackspacePressed: _onBackspacePressed,
-                ),
-              ),
-
-              const SizedBox(height: 20),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

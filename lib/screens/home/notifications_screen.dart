@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '/utils/app_theme.dart';
 import '/models/notification_model.dart';
 import '/screens/transactions/buy_sell_screen.dart';
+import '/screens/home/profile_screen.dart';
 import '/services/coingecko_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -29,16 +31,39 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       final prefs = await SharedPreferences.getInstance();
       _hasMadePurchase = prefs.getBool('hasMadePurchase') ?? false;
       
+      // Charger les IDs des notifications supprimées
+      final deletedIds = prefs.getStringList('deleted_notification_ids') ?? [];
+      
       // Vérifier si l'utilisateur est nouveau ou n'a pas fait d'achat
       final isNewUser = !_hasMadePurchase;
       
+      List<AppNotification> allNotifications;
       if (isNewUser) {
         // Générer les 5 notifications de bienvenue
-        _notifications = _generateWelcomeNotifications();
+        allNotifications = _generateWelcomeNotifications();
       } else {
         // Charger les notifications contextuelles
-        _notifications = await _generateContextualNotifications();
+        allNotifications = await _generateContextualNotifications();
       }
+      
+      // Charger les IDs des notifications lues
+      final readIds = prefs.getStringList('read_notification_ids') ?? [];
+      
+      // Filtrer les notifications supprimées et marquer celles qui sont lues
+      _notifications = allNotifications
+          .where((n) => !deletedIds.contains(n.id))
+          .map((n) => AppNotification(
+                id: n.id,
+                title: n.title,
+                message: n.message,
+                type: n.type,
+                createdAt: n.createdAt,
+                isRead: readIds.contains(n.id),
+                actionUrl: n.actionUrl,
+              ))
+          .toList();
+      
+      debugPrint("📱 ${_notifications.length} notifications chargées (${deletedIds.length} supprimées, ${readIds.length} lues)");
       
       setState(() {
         _loading = false;
@@ -47,6 +72,62 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       setState(() {
         _loading = false;
       });
+    }
+  }
+  
+  Future<void> _saveDeletedNotificationIds(List<String> deletedIds) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('deleted_notification_ids', deletedIds);
+      debugPrint("✅ ${deletedIds.length} notifications supprimées sauvegardées");
+    } catch (e) {
+      debugPrint("❌ Erreur sauvegarde notifications supprimées: $e");
+    }
+  }
+  
+  Future<void> _deleteNotification(String notificationId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final deletedIds = prefs.getStringList('deleted_notification_ids') ?? [];
+      if (!deletedIds.contains(notificationId)) {
+        deletedIds.add(notificationId);
+        await prefs.setStringList('deleted_notification_ids', deletedIds);
+        debugPrint("✅ Notification supprimée et sauvegardée: $notificationId (Total: ${deletedIds.length})");
+      }
+    } catch (e) {
+      debugPrint("Erreur suppression notification: $e");
+    }
+  }
+  
+  Future<void> _markNotificationAsRead(String notificationId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final readIds = prefs.getStringList('read_notification_ids') ?? [];
+      if (!readIds.contains(notificationId)) {
+        readIds.add(notificationId);
+        await prefs.setStringList('read_notification_ids', readIds);
+        debugPrint("✅ Notification marquée comme lue: $notificationId");
+        
+        // Mettre à jour l'état local
+        setState(() {
+          final index = _notifications.indexWhere((n) => n.id == notificationId);
+          if (index != -1) {
+            // Créer une nouvelle notification avec isRead = true
+            final notification = _notifications[index];
+            _notifications[index] = AppNotification(
+              id: notification.id,
+              title: notification.title,
+              message: notification.message,
+              type: notification.type,
+              createdAt: notification.createdAt,
+              isRead: true,
+              actionUrl: notification.actionUrl,
+            );
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint("❌ Erreur marquage notification comme lue: $e");
     }
   }
 
@@ -99,7 +180,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final now = DateTime.now();
     
     try {
-      // Vérifier les prix des cryptos pour les notifications contextuelles
+      // Charger les notifications contextuelles sauvegardées
+      final prefs = await SharedPreferences.getInstance();
+      final savedNotificationsJson = prefs.getString('saved_contextual_notifications');
+      
+      if (savedNotificationsJson != null) {
+        // Charger les notifications sauvegardées
+        final List<dynamic> savedList = jsonDecode(savedNotificationsJson);
+        for (var json in savedList) {
+          notifications.add(AppNotification.fromJson(json));
+        }
+        return notifications;
+      }
+      
+      // Sinon, générer de nouvelles notifications contextuelles
       final coins = await CoinGeckoService.fetchCoinsByIds(['bitcoin', 'ethereum', 'binancecoin', 'solana']);
       
       for (var coin in coins) {
@@ -118,8 +212,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           final random = Random();
           final message = messages[random.nextInt(messages.length)];
           
+          // Utiliser un ID stable basé sur la crypto et la date (jour)
+          final dayKey = '${now.year}-${now.month}-${now.day}';
           notifications.add(AppNotification(
-            id: 'contextual_${coin.id}_${now.millisecondsSinceEpoch}',
+            id: 'contextual_${coin.id}_$dayKey',
             title: '🔥 Opportunité d\'achat !',
             message: message,
             type: 'contextual',
@@ -127,6 +223,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             actionUrl: 'buy_${coin.id}',
           ));
         }
+      }
+      
+      // Sauvegarder les nouvelles notifications contextuelles
+      if (notifications.isNotEmpty) {
+        final notificationsJson = jsonEncode(notifications.map((n) => n.toJson()).toList());
+        await prefs.setString('saved_contextual_notifications', notificationsJson);
       }
     } catch (e) {
       debugPrint("Erreur génération notifications contextuelles: $e");
@@ -142,8 +244,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         _navigateToBuy();
       } else if (notification.actionUrl == 'profile') {
         // Rediriger vers le profil
-        Navigator.pop(context);
-        // TODO: Naviguer vers la page de profil
+        Navigator.pop(context); // Fermer l'écran de notifications
+        // Naviguer vers la page de profil via le HomeScreen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const ProfileScreen(),
+          ),
+        );
       } else if (notification.actionUrl == 'referral') {
         // Afficher le code de parrainage
         _showReferralCode();
@@ -158,6 +266,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _navigateToBuy() async {
     try {
       final coins = await CoinGeckoService.fetchCoinsByIds(['bitcoin']);
+      if (!mounted) return;
       if (coins.isNotEmpty) {
         final coin = coins[0];
         Navigator.push(
@@ -180,6 +289,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _navigateToBuySpecificCoin(String coinId) async {
     try {
       final coins = await CoinGeckoService.fetchCoinsByIds([coinId]);
+      if (!mounted) return;
       if (coins.isNotEmpty) {
         final coin = coins[0];
         Navigator.push(
@@ -261,7 +371,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         actions: [
           if (_notifications.isNotEmpty)
             TextButton(
-              onPressed: () {
+              onPressed: () async {
+                // Sauvegarder tous les IDs des notifications supprimées
+                final allIds = _notifications.map((n) => n.id).toList();
+                await _saveDeletedNotificationIds(allIds);
+                
                 setState(() {
                   _notifications = [];
                 });
@@ -310,75 +424,100 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _buildNotificationCard(AppNotification notification) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: notification.isRead ? Colors.transparent : AppColors.primaryGreen,
-          width: notification.isRead ? 0 : 2,
+    return Dismissible(
+      key: Key(notification.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(
+          color: AppColors.primaryRed,
+          borderRadius: BorderRadius.circular(16),
         ),
+        child: const Icon(Icons.delete, color: Colors.white),
       ),
+      onDismissed: (direction) async {
+        await _deleteNotification(notification.id);
+        setState(() {
+          _notifications.removeWhere((n) => n.id == notification.id);
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: notification.isRead ? Colors.transparent : AppColors.primaryGreen,
+            width: notification.isRead ? 0 : 2,
+          ),
+        ),
       child: InkWell(
-        onTap: () => _handleNotificationTap(notification),
+        onTap: () async {
+          // Marquer comme lue
+          if (!notification.isRead) {
+            await _markNotificationAsRead(notification.id);
+          }
+          _handleNotificationTap(notification);
+        },
         borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: _getNotificationColor(notification.type).withOpacity(0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  _getNotificationIcon(notification.type),
-                  color: _getNotificationColor(notification.type),
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      notification.title,
-                      style: AppTextStyles.heading2.copyWith(
-                        fontSize: 16,
-                        fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      notification.message,
-                      style: AppTextStyles.body.copyWith(
-                        color: AppColors.textFaded,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _formatTime(notification.createdAt),
-                      style: AppTextStyles.bodyFaded.copyWith(fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-              if (!notification.isRead)
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primaryGreen,
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: _getNotificationColor(notification.type).withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
+                  child: Icon(
+                    _getNotificationIcon(notification.type),
+                    color: _getNotificationColor(notification.type),
+                    size: 24,
+                  ),
                 ),
-            ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        notification.title,
+                        style: AppTextStyles.heading2.copyWith(
+                          fontSize: 16,
+                          fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        notification.message,
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.textFaded,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _formatTime(notification.createdAt),
+                        style: AppTextStyles.bodyFaded.copyWith(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!notification.isRead)
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primaryGreen,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
